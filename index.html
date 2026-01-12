@@ -3,54 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edward Jarvis | Sound Designer</title>
+    <title>Edward Jarvis | Occult Audio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nosifer&family=Uncial+Antiqua&family=Creepster&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: #eee; margin: 0; padding: 0; }
-        header { background: #1e1e1e; padding: 40px; text-align: center; }
-        h1 { font-size: 3em; margin: 0; }
-        section { padding: 40px; max-width: 1000px; margin: auto; }
-        .project { background: #222; padding: 20px; margin: 20px 0; border-radius: 10px; }
-        footer { text-align: center; padding: 20px; background: #1e1e1e; }
-        a { color: #0ff; text-decoration: none; }
+        body { 
+            margin: 0; padding: 0; background: #000; color: #ddd; font-family: 'Uncial Antiqua', cursive; 
+            overflow-x: hidden; 
+        }
+        header { 
+            background: linear-gradient(to bottom, #111, #000); padding: 60px 20px; text-align: center; position: relative; 
+            overflow: hidden;
+        }
+        h1 { font-family: 'Nosifer', cursive; font-size: 4em; color: #fff; text-shadow: 0 0 10px #333; margin: 0; }
+        p { font-size: 1.2em; max-width: 800px; margin: 20px auto; opacity: 0.9; }
+        section { padding: 80px 20px; max-width: 1000px; margin: auto; position: relative; }
+        .thorn-frame { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxwYXRoIGQ9Ik0wLDAgTDUwLDUwIE0xMDAsMCBMNTAsNTAgTTAuMTAwIEwxMDAsMTAwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==') repeat; /* Simple thorn-like base */
+            opacity: 0.15; animation: pulse 20s infinite alternate; z-index: -1;
+        }
+        .scrawl-overlay { 
+            position: absolute; top: 10%; left: 5%; font-family: 'Creepster', cursive; font-size: 1em; color: #333; 
+            writing-mode: vertical-rl; opacity: 0.3; animation: fade 15s infinite; 
+        }
+        @keyframes pulse { 0% { opacity: 0.1; transform: scale(1); } 100% { opacity: 0.2; transform: scale(1.05); } }
+        @keyframes fade { 0% { opacity: 0.2; } 50% { opacity: 0.4; } 100% { opacity: 0.2; } }
+        .project { background: rgba(20,20,20,0.8); padding: 30px; margin: 40px 0; border: 2px solid #333; border-radius: 10px; box-shadow: 0 0 20px #000; }
+        footer { text-align: center; padding: 40px; background: #111; font-size: 0.9em; opacity: 0.8; }
+        a { color: #999; text-decoration: underline wavy; }
+        /* Scroll transform: Patterns intensify lower down */
+        section:nth-child(even) .thorn-frame { opacity: 0.25; animation-duration: 10s; }
     </style>
 </head>
 <body>
+    <div class="thorn-frame"></div>
+    <div class="scrawl-overlay">whenever youre feeling blue keep walking and we will get there...</div>
+
     <header>
         <h1>Edward Jarvis</h1>
-        <p>Sound Designer | Interactive Audio | Synth & FMOD Explorer | Hatfield, UK</p>
-        <p><a href="https://x.com/Edward_jarvis1" target="_blank">@Edward_jarvis1 on X</a></p>
+        <p>Occult Soundscapes | Interactive Synth Rituals | Adaptive Darkness via FMOD</p>
+        <p>Hatfield Shadows | <a href="https://x.com/Edward_jarvis1" target="_blank">@Edward_jarvis1</a></p>
     </header>
 
     <section id="about">
-        <h2>About Me</h2>
-        <p>Hey, I'm Edward — passionate about creating immersive sounds, synths in Max/MSP, and adaptive music with FMOD. Based in Hatfield, England. Building interactive audio experiences one patch at a time.</p>
-        <!-- Add a photo: Upload image.jpg, then <img src="image.jpg" alt="Me" style="width:300px;"> -->
+        <h2 style="font-size:3em; text-align:center;">The Invocation</h2>
+        <p>In the void between patches and parameters, I summon immersive audio — Max/MSP synths that breathe, FMOD transitions that bleed with intensity and health. Raw, bleak, eternal.</p>
     </section>
 
     <section id="projects">
-        <h2>Projects</h2>
+        <h2 style="font-size:3em; text-align:center;">Rituals</h2>
         <div class="project">
-            <h3>Interactive Synth (Max/MSP via RNBO)</h3>
-            <p>Play with my browser-based synth — embed your exported RNBO here later!</p>
-            <!-- Placeholder: Replace with <iframe src="your-rnbo-folder/index.html" width="100%" height="500"></iframe> -->
+            <h3>Browser Synth Invocation (Max/RNBO)</h3>
+            <p>Summon the patch — twist parameters in the abyss.</p>
+            <!-- Embed your RNBO export here: <iframe src="rnbo-folder/index.html" width="100%" height="600" style="border:none;"></iframe> -->
         </div>
         <div class="project">
-            <h3>Adaptive Music Demo (FMOD)</h3>
-            <p>Sliders for intensity/health — hear transitions live! Embed FMOD player here.</p>
+            <h3>Adaptive Darkness (FMOD)</h3>
+            <p>Sliders for intensity/health — watch the soundscape decay or rage.</p>
+            <!-- Embed FMOD player here later -->
         </div>
-        <!-- Add more projects as you go -->
     </section>
 
     <section id="media">
-        <h2>Media Gallery</h2>
-        <!-- Example audio: Upload track.wav, then: -->
-        <audio controls><source src="track.wav" type="audio/wav">Your browser doesn't support audio.</audio>
-        <!-- Video: Upload video.mp4 <video controls width="600"><source src="video.mp4"></video> -->
-        <!-- Image: <img src="screenshot.png" alt="Synth" style="max-width:100%;"> -->
+        <h2 style="font-size:3em; text-align:center;">Echoes</h2>
+        <!-- Add your WAVs/videos/images here -->
+        <audio controls style="width:100%;"><source src="your-track.wav" type="audio/wav"></audio>
     </section>
 
     <footer>
-        <p>Contact: Your email or X | © 2026 Edward Jarvis</p>
+        <p>Whispers in the dark | Contact via X or the void</p>
     </footer>
 </body>
 </html>
