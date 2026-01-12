@@ -3,75 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edward Jarvis | Occult Audio</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nosifer&family=Uncial+Antiqua&family=Creepster&display=swap" rel="stylesheet">
+    <title>Edward Jarvis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Helvetica+Neue&display=swap" rel="stylesheet">
     <style>
         body { 
-            margin: 0; padding: 0; background: #000; color: #ddd; font-family: 'Uncial Antiqua', cursive; 
+            margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; 
             overflow-x: hidden; 
         }
+        /* Grain texture overlay */
+        body::before { 
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjc1IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=') repeat; 
+            pointer-events: none; z-index: 1; 
+        }
         header { 
-            background: linear-gradient(to bottom, #111, #000); padding: 60px 20px; text-align: center; position: relative; 
-            overflow: hidden;
+            height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            text-align: center; position: relative; z-index: 2; 
         }
-        h1 { font-family: 'Nosifer', cursive; font-size: 4em; color: #fff; text-shadow: 0 0 10px #333; margin: 0; }
-        p { font-size: 1.2em; max-width: 800px; margin: 20px auto; opacity: 0.9; }
-        section { padding: 80px 20px; max-width: 1000px; margin: auto; position: relative; }
-        .thorn-frame { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; 
-            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxwYXRoIGQ9Ik0wLDAgTDUwLDUwIE0xMDAsMCBMNTAsNTAgTTAuMTAwIEwxMDAsMTAwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==') repeat; /* Simple thorn-like base */
-            opacity: 0.15; animation: pulse 20s infinite alternate; z-index: -1;
-        }
-        .scrawl-overlay { 
-            position: absolute; top: 10%; left: 5%; font-family: 'Creepster', cursive; font-size: 1em; color: #333; 
-            writing-mode: vertical-rl; opacity: 0.3; animation: fade 15s infinite; 
-        }
-        @keyframes pulse { 0% { opacity: 0.1; transform: scale(1); } 100% { opacity: 0.2; transform: scale(1.05); } }
-        @keyframes fade { 0% { opacity: 0.2; } 50% { opacity: 0.4; } 100% { opacity: 0.2; } }
-        .project { background: rgba(20,20,20,0.8); padding: 30px; margin: 40px 0; border: 2px solid #333; border-radius: 10px; box-shadow: 0 0 20px #000; }
-        footer { text-align: center; padding: 40px; background: #111; font-size: 0.9em; opacity: 0.8; }
-        a { color: #999; text-decoration: underline wavy; }
-        /* Scroll transform: Patterns intensify lower down */
-        section:nth-child(even) .thorn-frame { opacity: 0.25; animation-duration: 10s; }
+        h1 { font-family: 'Oswald', sans-serif; font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; }
+        .subtitle { font-size: 1.2em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; }
+        .links { font-size: 1em; opacity: 0.7; }
+        section { padding: 100px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
+        h2 { font-family: 'Oswald', sans-serif; font-size: 4em; text-transform: uppercase; text-align: center; margin-bottom: 60px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
+        .card { background: #111; padding: 40px; text-align: center; transition: transform 0.3s, box-shadow 0.3s; }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .card h3 { font-family: 'Oswald', sans-serif; font-size: 2em; text-transform: uppercase; margin-bottom: 20px; }
+        footer { text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
+        /* Fade-in on scroll */
+        .fade-in { opacity: 0; transform: translateY(50px); transition: opacity 1s, transform 1s; }
+        .fade-in.visible { opacity: 1; transform: translateY(0); }
     </style>
 </head>
 <body>
-    <div class="thorn-frame"></div>
-    <div class="scrawl-overlay">whenever youre feeling blue keep walking and we will get there...</div>
-
     <header>
         <h1>Edward Jarvis</h1>
-        <p>Occult Soundscapes | Interactive Synth Rituals | Adaptive Darkness via FMOD</p>
-        <p>Hatfield Shadows | <a href="https://x.com/Edward_jarvis1" target="_blank">@Edward_jarvis1</a></p>
+        <div class="subtitle">Occult Soundscapes / Interactive Synth Rituals / Adaptive Darkness via FMOD</div>
+        <div class="links">Hatfield Shadows | <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@edward_jarvis1</a></div>
     </header>
 
     <section id="about">
-        <h2 style="font-size:3em; text-align:center;">The Invocation</h2>
-        <p>In the void between patches and parameters, I summon immersive audio — Max/MSP synths that breathe, FMOD transitions that bleed with intensity and health. Raw, bleak, eternal.</p>
+        <h2>About</h2>
+        <p style="text-align:center; max-width:800px; margin:auto; font-size:1.2em; line-height:1.6;">
+            In the void between patches and parameters, I summon immersive audio — Max/MSP synths that breathe, FMOD transitions that bleed with intensity and health. Raw, bleak, eternal.
+        </p>
     </section>
 
     <section id="projects">
-        <h2 style="font-size:3em; text-align:center;">Rituals</h2>
-        <div class="project">
-            <h3>Browser Synth Invocation (Max/RNBO)</h3>
-            <p>Summon the patch — twist parameters in the abyss.</p>
-            <!-- Embed your RNBO export here: <iframe src="rnbo-folder/index.html" width="100%" height="600" style="border:none;"></iframe> -->
-        </div>
-        <div class="project">
-            <h3>Adaptive Darkness (FMOD)</h3>
-            <p>Sliders for intensity/health — watch the soundscape decay or rage.</p>
-            <!-- Embed FMOD player here later -->
+        <h2>Projects</h2>
+        <div class="grid">
+            <div class="card fade-in">
+                <h3>Interactive Synth</h3>
+                <p>Browser-based Max/RNBO patch — twist parameters live.</p>
+                <!-- Embed RNBO here later -->
+            </div>
+            <div class="card fade-in">
+                <h3>Adaptive Music</h3>
+                <p>FMOD demo with intensity/health sliders — hear real-time transitions.</p>
+                <!-- Embed FMOD here -->
+            </div>
+            <!-- Add more cards as needed -->
         </div>
     </section>
 
     <section id="media">
-        <h2 style="font-size:3em; text-align:center;">Echoes</h2>
-        <!-- Add your WAVs/videos/images here -->
-        <audio controls style="width:100%;"><source src="your-track.wav" type="audio/wav"></audio>
+        <h2>Media</h2>
+        <div class="grid">
+            <!-- Example media cards -->
+            <div class="card fade-in">
+                <audio controls style="width:100%;"><source src="your-track.wav" type="audio/wav"></audio>
+            </div>
+        </div>
     </section>
 
     <footer>
-        <p>Whispers in the dark | Contact via X or the void</p>
+        <p>Contact via X or the void</p>
     </footer>
+
+    <script>
+        // Simple scroll fade-in
+        const faders = document.querySelectorAll('.fade-in');
+        const appearOptions = { threshold: 0.5 };
+        const appearOnScroll = new IntersectionObserver((entries) => {
+            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+        }, appearOptions);
+        faders.forEach(fader => appearOnScroll.observe(fader));
+    </script>
 </body>
 </html>
