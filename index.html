@@ -4,10 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edward Jarvis</title>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Helvetica+Neue&display=swap" rel="stylesheet">
     <style>
+        @font-face {
+            font-family: 'Druk Wide';
+            src: local('Druk Wide'), local('DrukWide'), local('Druk Wide Bold'), local('DrukWide-Bold');
+            font-weight: 700;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Druk Wide';
+            src: local('Druk Wide Medium'), local('DrukWide-Medium'), local('Druk Wide');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Druk Wide';
+            src: local('Druk Wide Regular'), local('DrukWide-Regular'), local('Druk Wide');
+            font-weight: 400;
+            font-style: normal;
+        }
         body { 
-            margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; 
+            margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Druk Wide', 'DrukWide', 'Arial Black', sans-serif; 
             overflow-x: hidden; 
         }
         /* Grain texture overlay */
@@ -20,16 +37,19 @@
             height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; 
             text-align: center; position: relative; z-index: 2; 
         }
-        h1 { font-family: 'Oswald', sans-serif; font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; }
-        .subtitle { font-size: 1.2em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; }
+        h1 { font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; font-weight: 700; }
+        .subtitle { font-size: 1.1em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; line-height: 1.6; font-weight: 500; }
         .links { font-size: 1em; opacity: 0.7; }
         section { padding: 100px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
-        h2 { font-family: 'Oswald', sans-serif; font-size: 4em; text-transform: uppercase; text-align: center; margin-bottom: 60px; }
+        h2 { font-size: 4em; text-transform: uppercase; text-align: center; margin-bottom: 60px; font-weight: 700; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
         .card { background: #111; padding: 40px; text-align: center; transition: transform 0.3s, box-shadow 0.3s; }
-        .card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-        .card h3 { font-family: 'Oswald', sans-serif; font-size: 2em; text-transform: uppercase; margin-bottom: 20px; }
+        .card.visible:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .card h3 { font-size: 2em; text-transform: uppercase; margin-bottom: 20px; font-weight: 700; }
         footer { text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
+        .body-copy { text-align: center; max-width: 860px; margin: auto; font-size: 1.05em; line-height: 1.7; }
+        .body-copy p { margin: 0 0 18px; }
+        .body-copy p:last-child { margin-bottom: 0; }
         /* Fade-in on scroll */
         .fade-in { opacity: 0; transform: translateY(50px); transition: opacity 1s, transform 1s; }
         .fade-in.visible { opacity: 1; transform: translateY(0); }
@@ -38,54 +58,80 @@
 <body>
     <header>
         <h1>Edward Jarvis</h1>
-        <div class="subtitle">Occult Soundscapes / Interactive Synth Rituals / Adaptive Darkness via FMOD</div>
-        <div class="links">Hatfield Shadows | <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@edward_jarvis1</a></div>
+        <div class="subtitle">Sound Design Student | University of Hertfordshire<br>Specialising in audio for film, TV, and games</div>
+        <div class="links">Hatfield, UK | <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a></div>
     </header>
 
     <section id="about">
-        <h2>About</h2>
-        <p style="text-align:center; max-width:800px; margin:auto; font-size:1.2em; line-height:1.6;">
-            In the void between patches and parameters, I summon immersive audio — Max/MSP synths that breathe, FMOD transitions that bleed with intensity and health. Raw, bleak, eternal.
-        </p>
+        <h2>About Me</h2>
+        <div class="body-copy">
+            <p>I'm a Sound Design student at the University of Hertfordshire with a passion for creating immersive audio experiences for film, TV, and games.</p>
+            <p>I particularly enjoy working with Max/MSP for custom synthesis and procedural audio, FMOD for adaptive music systems, and integrating sound into Unity projects. I'm excited about the role AI will play in the music and audio industries - from streamlining workflows to opening new creative possibilities - and I'm committed to staying current with emerging tools and innovations. I'm pro-AI and believe it will enhance, rather than replace, human creativity in sound design.</p>
+            <p>My experience includes recording and mixing live bands (both on-location and post-production for video sync), as well as building interactive audio demos and game soundscapes.</p>
+        </div>
     </section>
 
     <section id="projects">
-        <h2>Projects</h2>
+        <h2>Selected Projects</h2>
         <div class="grid">
             <div class="card fade-in">
-                <h3>Interactive Synth</h3>
-                <p>Browser-based Max/RNBO patch — twist parameters live.</p>
-                <!-- Embed RNBO here later -->
+                <h3>Interactive Synthesizer (Max/MSP)</h3>
+                <p>A browser-playable custom synthesizer built in Max/MSP and exported via RNBO. Features real-time parameter control for experimentation with timbre, modulation, and effects.</p>
             </div>
             <div class="card fade-in">
-                <h3>Adaptive Music</h3>
-                <p>FMOD demo with intensity/health sliders — hear real-time transitions.</p>
-                <!-- Embed FMOD here -->
+                <h3>Procedural Music Generator (Max/MSP)</h3>
+                <p>A generative music system in Max/MSP that creates random, evolving compositions based on user-defined rules and probability - demonstrating algorithmic audio techniques.</p>
             </div>
-            <!-- Add more cards as needed -->
+            <div class="card fade-in">
+                <h3>Adaptive Music Demo (FMOD)</h3>
+                <p>An interactive FMOD project inspired by the sound design of Dune, with real-time parameter control (e.g., intensity/health sliders) that trigger seamless music transitions and layer changes.</p>
+            </div>
+            <div class="card fade-in">
+                <h3>Horror Game Soundscape (Unity)</h3>
+                <p>An atmospheric sound design implementation in Unity for a horror game section, including layered ambiences, Foley, and dynamic triggers for tension and immersion.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="experience">
+        <h2>Additional Experience</h2>
+        <div class="grid">
+            <div class="card fade-in">
+                <h3>Live Band Recording &amp; Mixing</h3>
+                <p>Recorded and mixed several live band performances, delivering final stems ready for video editors to sync with footage.</p>
+            </div>
         </div>
     </section>
 
     <section id="media">
-        <h2>Media</h2>
+        <h2>Audio &amp; Video Demos</h2>
         <div class="grid">
-            <!-- Example media cards -->
             <div class="card fade-in">
-                <audio controls style="width:100%;"><source src="your-track.wav" type="audio/wav"></audio>
+                <p>(Just list embeds/players here - e.g., your WAVs, Unity demo videos, band mixes.)</p>
             </div>
         </div>
     </section>
 
     <footer>
-        <p>Contact via X or the void</p>
+        <p>Get in touch: <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a><br>edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
     </footer>
 
     <script>
         // Simple scroll fade-in
         const faders = document.querySelectorAll('.fade-in');
-        const appearOptions = { threshold: 0.5 };
+        const appearOptions = { threshold: [0, 0.45, 0.55, 1] };
+        const showRatio = 0.55;
+        const hideRatio = 0.45;
         const appearOnScroll = new IntersectionObserver((entries) => {
-            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+            entries.forEach(entry => {
+                if (entry.intersectionRatio >= showRatio) {
+                    entry.target.classList.add('visible');
+                    return;
+                }
+                if (entry.intersectionRatio <= hideRatio) {
+                    entry.target.classList.remove('visible');
+                }
+            });
         }, appearOptions);
         faders.forEach(fader => appearOnScroll.observe(fader));
     </script>
