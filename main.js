@@ -19,6 +19,14 @@ let started = false;
 let isPaused = false;
 let currentIntensity = DEFAULT_INTENSITY;
 let currentHealth = DEFAULT_HEALTH;
+let analyzerState = {
+  canvas: null,
+  ctx: null,
+  analyser: null,
+  data: null,
+  rafId: 0,
+  connected: false
+};
 
 function check(result, label) {
   const OK = typeof FMOD.OK === "number"
@@ -70,6 +78,110 @@ function stopAndReleaseEvent() {
   eventInstance = null;
 }
 
+function getAudioContext() {
+  return FMOD && (FMOD.mContext || FMOD.context);
+}
+
+function getAudioNode() {
+  return FMOD && (FMOD.mWorkletNode || FMOD._as_script_node);
+}
+
+function setupAnalyzer() {
+  if (analyzerState.canvas) return;
+  const canvas = document.getElementById("fmodAnalyzer");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  analyzerState.canvas = canvas;
+  analyzerState.ctx = ctx;
+
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.floor(rect.width * dpr));
+    const height = Math.max(1, Math.floor(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  const connect = () => {
+    if (analyzerState.connected) return true;
+    const audioContext = getAudioContext();
+    const sourceNode = getAudioNode();
+    if (!audioContext || !sourceNode || typeof audioContext.createAnalyser !== "function") {
+      return false;
+    }
+
+    if (!analyzerState.analyser) {
+      analyzerState.analyser = audioContext.createAnalyser();
+      analyzerState.analyser.fftSize = 1024;
+      analyzerState.analyser.smoothingTimeConstant = 0.85;
+      analyzerState.data = new Uint8Array(analyzerState.analyser.frequencyBinCount);
+    }
+
+    try {
+      sourceNode.disconnect();
+    } catch (_) {}
+
+    try {
+      analyzerState.analyser.disconnect();
+    } catch (_) {}
+
+    sourceNode.connect(analyzerState.analyser);
+    analyzerState.analyser.connect(audioContext.destination);
+    analyzerState.connected = true;
+    return true;
+  };
+
+  const draw = () => {
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.beginPath();
+
+    if (analyzerState.analyser && analyzerState.data && analyzerState.connected) {
+      analyzerState.analyser.getByteFrequencyData(analyzerState.data);
+      const len = analyzerState.data.length;
+      for (let i = 0; i < len; i += 1) {
+        const x = (i / (len - 1)) * width;
+        const v = analyzerState.data[i] / 255;
+        const y = height - (v * height * 0.9 + height * 0.05);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+    } else {
+      ctx.moveTo(0, height * 0.6);
+      ctx.lineTo(width, height * 0.6);
+    }
+
+    ctx.stroke();
+    analyzerState.rafId = requestAnimationFrame(draw);
+  };
+
+  if (!connect()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (connect() || tries > 20) clearInterval(timer);
+    }, 150);
+  }
+
+  if (!analyzerState.rafId) draw();
+}
+
 function createEventInstance() {
   if (!eventDesc) throw new Error("Event description is not ready.");
   const instOut = { val: 0 };
@@ -79,6 +191,7 @@ function createEventInstance() {
   check(eventInstance.start(), "eventInstance.start");
   isPaused = false;
   applyParameters();
+  setupAnalyzer();
 }
 
 async function fetchArrayBuffer(url) {
