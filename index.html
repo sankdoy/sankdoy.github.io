@@ -24,14 +24,14 @@
             font-style: normal;
         }
         body { 
-            margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Druk Wide', 'DrukWide', 'Arial Black', sans-serif; 
+            margin: 0; padding: 0; color: #fff; font-family: 'Druk Wide', 'DrukWide', 'Arial Black', sans-serif; 
+            background: #000 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+') repeat; 
             overflow-x: hidden; 
         }
-        /* Grain texture overlay */
-        body::before { 
-            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjc1IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=') repeat; 
-            pointer-events: none; z-index: 1; 
+        /* Dark wash over the grain so it reads on black */
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; opacity: 0.85; pointer-events: none; z-index: 1;
         }
         header { 
             height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; 
@@ -40,19 +40,43 @@
         h1 { font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; font-weight: 700; }
         .subtitle { font-size: 1.1em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; line-height: 1.6; font-weight: 500; }
         .links { font-size: 1em; opacity: 0.7; }
-        section { padding: 100px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
+        section { padding: 110px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
+        section + section { margin-top: 20px; }
         h2 { font-size: 4em; text-transform: uppercase; text-align: center; margin-bottom: 60px; font-weight: 700; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
         .card { background: #111; padding: 40px; text-align: center; transition: transform 0.3s, box-shadow 0.3s; }
-        .card.visible:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
         .card h3 { font-size: 2em; text-transform: uppercase; margin-bottom: 20px; font-weight: 700; }
+        .project-list { display: flex; flex-direction: column; gap: 80px; }
+        .project-row { display: flex; gap: 60px; align-items: center; }
+        .project-row.reverse { flex-direction: row-reverse; }
+        .project-media { flex: 1; }
+        .project-copy { flex: 1; text-align: left; }
+        .project-copy h3 { font-size: 2.2em; text-transform: uppercase; margin: 0 0 20px; font-weight: 700; }
+        .project-copy p { margin: 0; line-height: 1.7; }
+        .media-frame { background: #0b0b0b; border: 1px solid #1f1f1f; padding: 24px; min-height: 240px; display: flex; align-items: center; justify-content: center; color: #777; text-transform: uppercase; letter-spacing: 0.08em; }
+        .project-media video,
+        .project-media iframe,
+        .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
+        .soundcloud-list { max-width: 1000px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 28px; }
+        .soundcloud-list iframe { width: 100%; height: 166px; border: 0; display: block; }
+        .soundcloud-caption { font-size: 0.75em; color: #bdbdbd; letter-spacing: 0.03em; margin-top: 8px; }
+        .soundcloud-caption a { color: #bdbdbd; text-decoration: none; }
         footer { text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
         .body-copy { text-align: center; max-width: 860px; margin: auto; font-size: 1.05em; line-height: 1.7; }
         .body-copy p { margin: 0 0 18px; }
         .body-copy p:last-child { margin-bottom: 0; }
         /* Fade-in on scroll */
-        .fade-in { opacity: 0; transform: translateY(50px); transition: opacity 1s, transform 1s; }
-        .fade-in.visible { opacity: 1; transform: translateY(0); }
+        .fade-in { opacity: 0; transform: translateY(50px); }
+        @media (max-width: 900px) {
+            h1 { font-size: 3.4em; }
+            h2 { font-size: 2.6em; }
+            .project-row,
+            .project-row.reverse { flex-direction: column; }
+            .project-copy { text-align: center; }
+            .project-copy h3 { text-align: center; }
+            .media-frame { min-height: 200px; }
+        }
     </style>
 </head>
 <body>
@@ -73,22 +97,67 @@
 
     <section id="projects">
         <h2>Selected Projects</h2>
-        <div class="grid">
-            <div class="card fade-in">
-                <h3>Interactive Synthesizer (Max/MSP)</h3>
-                <p>A browser-playable custom synthesizer built in Max/MSP and exported via RNBO. Features real-time parameter control for experimentation with timbre, modulation, and effects.</p>
+        <div class="project-list">
+            <div class="project-row fade-in">
+                <div class="project-media">
+                    <div class="media-frame">Embed coming soon</div>
+                </div>
+                <div class="project-copy">
+                    <h3>Interactive Synthesizer (Max/MSP)</h3>
+                    <p>A browser-playable custom synthesizer built in Max/MSP and exported via RNBO. Features real-time parameter control for experimentation with timbre, modulation, and effects.</p>
+                </div>
             </div>
-            <div class="card fade-in">
-                <h3>Procedural Music Generator (Max/MSP)</h3>
-                <p>A generative music system in Max/MSP that creates random, evolving compositions based on user-defined rules and probability - demonstrating algorithmic audio techniques.</p>
+            <div class="project-row fade-in reverse">
+                <div class="project-media">
+                    <div class="media-frame">Embed coming soon</div>
+                </div>
+                <div class="project-copy">
+                    <h3>Procedural Music Generator (Max/MSP)</h3>
+                    <p>A generative music system in Max/MSP that creates random, evolving compositions based on user-defined rules and probability - demonstrating algorithmic audio techniques.</p>
+                </div>
             </div>
-            <div class="card fade-in">
-                <h3>Adaptive Music Demo (FMOD)</h3>
-                <p>An interactive FMOD project inspired by the sound design of Dune, with real-time parameter control (e.g., intensity/health sliders) that trigger seamless music transitions and layer changes.</p>
+            <div class="project-row fade-in">
+                <div class="project-media">
+                    <div class="media-frame">Embed coming soon</div>
+                </div>
+                <div class="project-copy">
+                    <h3>Adaptive Music Demo (FMOD)</h3>
+                    <p>An interactive FMOD project inspired by the sound design of Dune, with real-time parameter control (e.g., intensity/health sliders) that trigger seamless music transitions and layer changes.</p>
+                </div>
             </div>
-            <div class="card fade-in">
-                <h3>Horror Game Soundscape (Unity)</h3>
-                <p>An atmospheric sound design implementation in Unity for a horror game section, including layered ambiences, Foley, and dynamic triggers for tension and immersion.</p>
+            <div class="project-row fade-in reverse">
+                <div class="project-media">
+                    <div class="media-frame">Embed coming soon</div>
+                </div>
+                <div class="project-copy">
+                    <h3>Horror Game Soundscape (Unity)</h3>
+                    <p>An atmospheric sound design implementation in Unity for a horror game section, including layered ambiences, Foley, and dynamic triggers for tension and immersion.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="music">
+        <h2>Music &amp; Tracks on SoundCloud</h2>
+        <p style="text-align:center;">Selected original tracks and mixes available to stream. <a href="https://soundcloud.com/edward-jarvis-230857335/popular-tracks" target="_blank" style="color:#fff;">SoundCloud playlist</a></p>
+        <div class="soundcloud-list fade-in">
+            <div class="soundcloud-item">
+                <iframe scrolling="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A1232695780&color=%231c141d&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+                <div class="soundcloud-caption">
+                    <a href="https://soundcloud.com/edward-jarvis-230857335" target="_blank">Eduardo</a> · <a href="https://soundcloud.com/edward-jarvis-230857335/flume-the-difference-x-glue-bicep-bootleg-mashup" target="_blank">(Flume - The Difference) X (Glue - Bicep) Bootleg mashup</a>
+                </div>
+            </div>
+            <div class="soundcloud-item">
+                <iframe scrolling="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A1749222648&color=%231c141d&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+                <div class="soundcloud-caption">
+                    <a href="https://soundcloud.com/edward-jarvis-230857335" target="_blank">Eduardo</a> · <a href="https://soundcloud.com/edward-jarvis-230857335/we-got-along-i-guess-demo" target="_blank">We Got Along I Guess (demo)</a>
+                </div>
+            </div>
+            <div class="soundcloud-item">
+                <iframe scrolling="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A1749222729&color=%231c141d&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+                <div class="soundcloud-caption">
+                    <a href="https://soundcloud.com/edward-jarvis-230857335" target="_blank">Eduardo</a> · <a href="https://soundcloud.com/edward-jarvis-230857335/support-the-cause-demo" target="_blank">Support The Cause (demo)</a>
+                </div>
             </div>
         </div>
     </section>
@@ -117,23 +186,26 @@
     </footer>
 
     <script>
-        // Simple scroll fade-in
         const faders = document.querySelectorAll('.fade-in');
-        const appearOptions = { threshold: [0, 0.45, 0.55, 1] };
-        const showRatio = 0.55;
-        const hideRatio = 0.45;
+
+        const appearOptions = {
+            threshold: Array.from({ length: 101 }, (_, i) => i / 100),
+            rootMargin: '0px 0px -50px 0px'
+        };
+
         const appearOnScroll = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.intersectionRatio >= showRatio) {
-                    entry.target.classList.add('visible');
-                    return;
-                }
-                if (entry.intersectionRatio <= hideRatio) {
-                    entry.target.classList.remove('visible');
-                }
+                entry.target.style.opacity = entry.intersectionRatio;
+                entry.target.style.transform = `translateY(${50 * (1 - entry.intersectionRatio)}px)`;
             });
         }, appearOptions);
-        faders.forEach(fader => appearOnScroll.observe(fader));
+
+        faders.forEach(fader => {
+            fader.style.opacity = 0;
+            fader.style.transform = 'translateY(50px)';
+            fader.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+            appearOnScroll.observe(fader);
+        });
     </script>
 </body>
 </html>
