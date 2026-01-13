@@ -8,16 +8,77 @@ const BANKS = [
 const TEST_EVENT = "event:/Main"; // MUST match exactly (copy event path in FMOD Studio)
 // ----------------------------------------
 
+const DEFAULT_INTENSITY = 0;
+const DEFAULT_HEALTH = 100;
+
 let FMOD = null;
 let studioSystem = null;
+let eventDesc = null;
 let eventInstance = null;
 let started = false;
+let isPaused = false;
+let currentIntensity = DEFAULT_INTENSITY;
+let currentHealth = DEFAULT_HEALTH;
 
 function check(result, label) {
   const OK = typeof FMOD.OK === "number"
     ? FMOD.OK
     : (typeof FMOD.FMOD_OK === "number" ? FMOD.FMOD_OK : 0);
   if (result !== OK) throw new Error(`${label} failed (err ${result})`);
+}
+
+function setEventParameter(name, value) {
+  if (!eventInstance) return;
+  if (typeof eventInstance.setParameterByName === "function") {
+    const result = eventInstance.setParameterByName(name, value, false);
+    if (typeof result === "number") check(result, `setParameter(${name})`);
+    return;
+  }
+  if (typeof eventInstance.setParameterByNameWithLabel === "function") {
+    const result = eventInstance.setParameterByNameWithLabel(name, String(value));
+    if (typeof result === "number") check(result, `setParameter(${name})`);
+    return;
+  }
+  console.warn(`[FMOD] Missing parameter setter for ${name}`);
+}
+
+function applyParameters() {
+  setEventParameter("Intensity", currentIntensity);
+  setEventParameter("Health", currentHealth);
+}
+
+function setPaused(nextPaused) {
+  if (!eventInstance || typeof eventInstance.setPaused !== "function") return;
+  const result = eventInstance.setPaused(nextPaused);
+  if (typeof result === "number") check(result, "eventInstance.setPaused");
+  isPaused = nextPaused;
+}
+
+function stopAndReleaseEvent() {
+  if (!eventInstance) return;
+  if (typeof eventInstance.stop === "function") {
+    const mode = typeof FMOD.STUDIO_STOP_IMMEDIATE === "number"
+      ? FMOD.STUDIO_STOP_IMMEDIATE
+      : 0;
+    const result = eventInstance.stop(mode);
+    if (typeof result === "number") check(result, "eventInstance.stop");
+  }
+  if (typeof eventInstance.release === "function") {
+    const result = eventInstance.release();
+    if (typeof result === "number") check(result, "eventInstance.release");
+  }
+  eventInstance = null;
+}
+
+function createEventInstance() {
+  if (!eventDesc) throw new Error("Event description is not ready.");
+  const instOut = { val: 0 };
+  check(eventDesc.createInstance(instOut), "createInstance");
+  eventInstance = instOut.val;
+  if (!eventInstance) throw new Error("createInstance returned 0 handle.");
+  check(eventInstance.start(), "eventInstance.start");
+  isPaused = false;
+  applyParameters();
 }
 
 async function fetchArrayBuffer(url) {
@@ -117,13 +178,8 @@ async function startFMOD() {
 
   const eventDescOut = { val: 0 };
   check(studioSystem.getEvent(TEST_EVENT, eventDescOut), `getEvent(${TEST_EVENT})`);
-  const eventDesc = eventDescOut.val;
-
-  const instOut = { val: 0 };
-  check(eventDesc.createInstance(instOut), "createInstance");
-  eventInstance = instOut.val;
-
-  check(eventInstance.start(), "eventInstance.start");
+  eventDesc = eventDescOut.val;
+  createEventInstance();
   console.log("[FMOD] Playing:", TEST_EVENT);
 
   const tick = () => {
@@ -134,12 +190,88 @@ async function startFMOD() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("startAudio");
-  btn.addEventListener("click", () => {
-    startFMOD().catch((err) => {
+  const startBtn = document.getElementById("startAudio");
+  const toggleBtn = document.getElementById("toggleAudio");
+  const resetBtn = document.getElementById("resetAudio");
+  const intensitySlider = document.getElementById("intensitySlider");
+  const healthSlider = document.getElementById("healthSlider");
+  const intensityValue = document.getElementById("intensityValue");
+  const healthValue = document.getElementById("healthValue");
+
+  if (!startBtn) {
+    console.warn('Missing button with id="startAudio"');
+    return;
+  }
+
+  function updateValue(el, value) {
+    if (el) el.textContent = String(value);
+  }
+
+  if (intensitySlider) {
+    currentIntensity = Number(intensitySlider.value);
+    updateValue(intensityValue, currentIntensity);
+    intensitySlider.addEventListener("input", () => {
+      currentIntensity = Number(intensitySlider.value);
+      updateValue(intensityValue, currentIntensity);
+      setEventParameter("Intensity", currentIntensity);
+    });
+  }
+
+  if (healthSlider) {
+    currentHealth = Number(healthSlider.value);
+    updateValue(healthValue, currentHealth);
+    healthSlider.addEventListener("input", () => {
+      currentHealth = Number(healthSlider.value);
+      updateValue(healthValue, currentHealth);
+      setEventParameter("Health", currentHealth);
+    });
+  }
+
+  startBtn.addEventListener("click", () => {
+    startFMOD().then(() => {
+      startBtn.disabled = true;
+      startBtn.textContent = "Audio ready";
+      if (toggleBtn) toggleBtn.disabled = false;
+      if (resetBtn) resetBtn.disabled = false;
+      if (toggleBtn) toggleBtn.textContent = "Pause";
+    }).catch((err) => {
       console.error(err);
       alert(err.message);
       started = false;
     });
   });
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      if (!eventInstance) return;
+      const nextPaused = !isPaused;
+      setPaused(nextPaused);
+      toggleBtn.textContent = nextPaused ? "Play" : "Pause";
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      currentIntensity = DEFAULT_INTENSITY;
+      currentHealth = DEFAULT_HEALTH;
+      if (intensitySlider) intensitySlider.value = String(currentIntensity);
+      if (healthSlider) healthSlider.value = String(currentHealth);
+      updateValue(intensityValue, currentIntensity);
+      updateValue(healthValue, currentHealth);
+
+      (async () => {
+        if (!started) {
+          await startFMOD();
+        } else {
+          stopAndReleaseEvent();
+          createEventInstance();
+        }
+        if (toggleBtn) toggleBtn.textContent = "Pause";
+      })().catch((err) => {
+        console.error(err);
+        alert(err.message);
+        started = false;
+      });
+    });
+  }
 });
