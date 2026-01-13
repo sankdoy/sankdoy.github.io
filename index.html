@@ -255,14 +255,14 @@
     </footer>
 
     <script>
-        const FMOD_VER = "v10";
+        const FMOD_VER = "v11";
         window.Module = {
             locateFile: (path) => `fmod/${path}?${FMOD_VER}`,
             printErr: (msg) => console.error("[FMOD]", msg)
         };
     </script>
-    <script src="fmod/fmodstudio.js?v10"></script>
-    <script src="main.js?v10" defer></script>
+    <script src="fmod/fmodstudio.js?v11"></script>
+    <script src="main.js?v11" defer></script>
 
     <script>
         (function makeNoiseTile(){
