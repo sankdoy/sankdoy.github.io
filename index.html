@@ -25,14 +25,30 @@
         }
         body { 
             margin: 0; padding: 0; color: #fff; font-family: 'Druk Wide', 'DrukWide', 'Arial Black', sans-serif; 
-            background: #000 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+') repeat; 
-            overflow-x: hidden; 
+            background: #000; position: relative;
+            overflow-x: hidden;
+            isolation: isolate;
         }
-        /* Dark wash over the grain so it reads on black */
-        body::before {
-            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; opacity: 0.85; pointer-events: none; z-index: 1;
+        .bg-wash{
+            position: absolute;
+            inset: 0;
+            background: #000;
+            opacity: 0.35;
+            pointer-events: none;
+            z-index: 0;
         }
+        .bg-noise{
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.10;
+            mix-blend-mode: screen;
+        }
+        .bg-noise.debug-normal { mix-blend-mode: normal; opacity: 0.18; }
         header { 
             height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; 
             text-align: center; position: relative; z-index: 2; 
@@ -62,7 +78,7 @@
         .soundcloud-list iframe { width: 100%; height: 166px; border: 0; display: block; }
         .soundcloud-caption { font-size: 0.75em; color: #bdbdbd; letter-spacing: 0.03em; margin-top: 8px; }
         .soundcloud-caption a { color: #bdbdbd; text-decoration: none; }
-        footer { text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
+        footer { position: relative; text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
         .body-copy { text-align: center; max-width: 860px; margin: auto; font-size: 1.05em; line-height: 1.7; }
         .body-copy p { margin: 0 0 18px; }
         .body-copy p:last-child { margin-bottom: 0; }
@@ -80,6 +96,25 @@
     </style>
 </head>
 <body>
+    <div class="bg-wash" aria-hidden="true"></div>
+    <svg class="bg-noise debug-normal" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+            <filter id="noiseFilter" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="6" stitchTiles="stitch" seed="7" result="n" />
+                <feColorMatrix in="n" type="matrix" values="
+                    1.08 0.04 0.04 0 0.10
+                    0.04 1.08 0.04 0 0.08
+                    0.04 0.04 1.08 0 0.12
+                    0    0    0    1 0" result="tinted" />
+                <feColorMatrix in="tinted" type="saturate" values="2.2" result="sat" />
+                <feColorMatrix in="sat" type="hueRotate" values="26" result="hue" />
+                <feComponentTransfer in="hue" result="out">
+                    <feFuncA type="table" tableValues="0 0.85" />
+                </feComponentTransfer>
+            </filter>
+        </defs>
+        <rect width="100%" height="100%" filter="url(#noiseFilter)"></rect>
+    </svg>
     <header>
         <h1>Edward Jarvis</h1>
         <div class="subtitle">Sound Design Student | University of Hertfordshire<br>Specialising in audio for film, TV, and games</div>
@@ -109,7 +144,7 @@
             </div>
             <div class="project-row fade-in reverse">
                 <div class="project-media">
-                    <div class="media-frame">Embed coming soon</div>
+                    <video src="redpandacompress_Unity%20horror%20game%20soundscape%20demo%20%28WARNING%20-%20flashing%20lights%29.mp4" controls autoplay loop muted playsinline></video>
                 </div>
                 <div class="project-copy">
                     <h3>Procedural Music Generator (Max/MSP)</h3>
