@@ -203,6 +203,20 @@
         <p>Get in touch: <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a><br>edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
     </footer>
 
+    <button id="startAudio" style="position:fixed;bottom:20px;left:20px;z-index:9999;">
+        Start audio
+    </button>
+
+    <script>
+        const FMOD_VER = "v10";
+        window.Module = {
+            locateFile: (path) => `fmod/${path}?${FMOD_VER}`,
+            printErr: (msg) => console.error("[FMOD]", msg)
+        };
+    </script>
+    <script src="fmod/fmodstudio.js?v10"></script>
+    <script src="main.js?v10" defer></script>
+
     <script>
         (function makeNoiseTile(){
             const s = 256;
