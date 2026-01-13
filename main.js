@@ -121,9 +121,11 @@ function setupAnalyzer() {
 
     if (!analyzerState.analyser) {
       analyzerState.analyser = audioContext.createAnalyser();
-      analyzerState.analyser.fftSize = 1024;
-      analyzerState.analyser.smoothingTimeConstant = 0.85;
-      analyzerState.data = new Uint8Array(analyzerState.analyser.frequencyBinCount);
+      analyzerState.analyser.fftSize = 4096;
+      analyzerState.analyser.smoothingTimeConstant = 0.8;
+      analyzerState.analyser.minDecibels = -96;
+      analyzerState.analyser.maxDecibels = -20;
+      analyzerState.data = new Float32Array(analyzerState.analyser.frequencyBinCount);
     }
 
     try {
@@ -150,12 +152,28 @@ function setupAnalyzer() {
     ctx.beginPath();
 
     if (analyzerState.analyser && analyzerState.data && analyzerState.connected) {
-      analyzerState.analyser.getByteFrequencyData(analyzerState.data);
+      analyzerState.analyser.getFloatFrequencyData(analyzerState.data);
       const len = analyzerState.data.length;
-      for (let i = 0; i < len; i += 1) {
-        const x = (i / (len - 1)) * width;
-        const v = analyzerState.data[i] / 255;
-        const y = height - (v * height * 0.9 + height * 0.05);
+      const minDb = analyzerState.analyser.minDecibels;
+      const maxDb = analyzerState.analyser.maxDecibels;
+      const nyquist = (getAudioContext()?.sampleRate || 44100) / 2;
+      const minFreq = 20;
+      const maxFreq = Math.min(20000, nyquist);
+      const logMax = Math.log10(maxFreq / minFreq);
+      const slopeDbPerOct = 3;
+
+      for (let i = 0; i <= width; i += 1) {
+        const pct = width === 0 ? 0 : i / width;
+        const freq = minFreq * Math.pow(10, logMax * pct);
+        const index = Math.min(len - 1, Math.max(0, Math.round((freq / nyquist) * (len - 1))));
+        const db = analyzerState.data[index];
+        const slope = slopeDbPerOct * Math.log2(freq / 1000);
+        const displayDb = db + slope;
+        let norm = (displayDb - minDb) / (maxDb - minDb);
+        norm = Math.max(0, Math.min(1, norm));
+        norm = Math.pow(norm, 0.8);
+        const x = i;
+        const y = height - (norm * height * 0.9 + height * 0.05);
         if (i === 0) {
           ctx.moveTo(x, y);
         } else {
