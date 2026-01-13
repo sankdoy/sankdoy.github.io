@@ -30,7 +30,7 @@
             isolation: isolate;
         }
         .bg-wash{
-            position: absolute;
+            position: fixed;
             inset: 0;
             background: #000;
             opacity: 0.35;
@@ -38,17 +38,26 @@
             z-index: 0;
         }
         .bg-noise{
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            display: block;
+            position: fixed;
+            left: -12%;
+            top: -12%;
+            width: 124%;
+            height: 124%;
             pointer-events: none;
             z-index: 1;
-            opacity: 0.10;
-            mix-blend-mode: screen;
+            opacity: 0.12;
+            mix-blend-mode: soft-light;
+            background-repeat: repeat;
+            background-size: 420px 420px;
+            will-change: background-position;
         }
-        .bg-noise.debug-normal { mix-blend-mode: normal; opacity: 0.18; }
+        @media (prefers-reduced-motion: no-preference){
+            .bg-noise{ animation: grainDrift 1.07s steps(6) infinite; }
+        }
+        @keyframes grainDrift{
+            from{ background-position: 0 0; }
+            to  { background-position: 140px 80px; }
+        }
         header { 
             height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; 
             text-align: center; position: relative; z-index: 2; 
@@ -97,24 +106,7 @@
 </head>
 <body>
     <div class="bg-wash" aria-hidden="true"></div>
-    <svg class="bg-noise debug-normal" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <defs>
-            <filter id="noiseFilter" x="-20%" y="-20%" width="140%" height="140%">
-                <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="6" stitchTiles="stitch" seed="7" result="n" />
-                <feColorMatrix in="n" type="matrix" values="
-                    1.08 0.04 0.04 0 0.10
-                    0.04 1.08 0.04 0 0.08
-                    0.04 0.04 1.08 0 0.12
-                    0    0    0    1 0" result="tinted" />
-                <feColorMatrix in="tinted" type="saturate" values="2.2" result="sat" />
-                <feColorMatrix in="sat" type="hueRotate" values="26" result="hue" />
-                <feComponentTransfer in="hue" result="out">
-                    <feFuncA type="table" tableValues="0 0.85" />
-                </feComponentTransfer>
-            </filter>
-        </defs>
-        <rect width="100%" height="100%" filter="url(#noiseFilter)"></rect>
-    </svg>
+    <div class="bg-noise" aria-hidden="true"></div>
     <header>
         <h1>Edward Jarvis</h1>
         <div class="subtitle">Sound Design Student | University of Hertfordshire<br>Specialising in audio for film, TV, and games</div>
@@ -125,8 +117,8 @@
         <h2>About Me</h2>
         <div class="body-copy">
             <p>I'm a Sound Design student at the University of Hertfordshire with a passion for creating immersive audio experiences for film, TV, and games.</p>
-            <p>I particularly enjoy working with Max/MSP for custom synthesis and procedural audio, FMOD for adaptive music systems, and integrating sound into Unity projects. I'm excited about the role AI will play in the music and audio industries - from streamlining workflows to opening new creative possibilities - and I'm committed to staying current with emerging tools and innovations. I'm pro-AI and believe it will enhance, rather than replace, human creativity in sound design.</p>
-            <p>My experience includes recording and mixing live bands (both on-location and post-production for video sync), as well as building interactive audio demos and game soundscapes.</p>
+            <p>I particularly enjoy working with Max/MSP for custom synthesis and procedural audio, FMOD for adaptive music systems, and integrating sound into Unity projects. I'm excited about the role AI will play in the music and audio industries, from streamlining workflows to opening new creative possibilities, and I'm committed to staying current with emerging tools and innovations. I'm pro AI and believe it will enhance, rather than replace, human creativity in sound design.</p>
+            <p>My experience includes recording and mixing live bands (both on location and post production for video sync), as well as building interactive audio demos and game soundscapes.</p>
         </div>
     </section>
 
@@ -139,16 +131,16 @@
                 </div>
                 <div class="project-copy">
                     <h3>Interactive Synthesizer (Max/MSP)</h3>
-                    <p>A browser-playable custom synthesizer built in Max/MSP and exported via RNBO. Features real-time parameter control for experimentation with timbre, modulation, and effects.</p>
+                    <p>A browser playable custom synthesizer built in Max/MSP and exported via RNBO. Features real time parameter control for experimentation with timbre, modulation, and effects.</p>
                 </div>
             </div>
             <div class="project-row fade-in reverse">
                 <div class="project-media">
-                    <video src="redpandacompress_Unity%20horror%20game%20soundscape%20demo%20%28WARNING%20-%20flashing%20lights%29.mp4" controls autoplay loop muted playsinline></video>
+                    <video src="redpandacompress_Unity%20horror%20game%20soundscape%20demo%20%28WARNING%20-%20flashing%20lights%29.mp4" controls loop muted playsinline></video>
                 </div>
                 <div class="project-copy">
                     <h3>Procedural Music Generator (Max/MSP)</h3>
-                    <p>A generative music system in Max/MSP that creates random, evolving compositions based on user-defined rules and probability - demonstrating algorithmic audio techniques.</p>
+                    <p>A generative music system in Max/MSP that creates random, evolving compositions based on user defined rules and probability, demonstrating algorithmic audio techniques.</p>
                 </div>
             </div>
             <div class="project-row fade-in">
@@ -157,7 +149,7 @@
                 </div>
                 <div class="project-copy">
                     <h3>Adaptive Music Demo (FMOD)</h3>
-                    <p>An interactive FMOD project inspired by the sound design of Dune, with real-time parameter control (e.g., intensity/health sliders) that trigger seamless music transitions and layer changes.</p>
+                    <p>An interactive FMOD project inspired by the sound design of Dune, with real time parameter control (e.g., intensity/health sliders) that trigger seamless music transitions and layer changes.</p>
                 </div>
             </div>
             <div class="project-row fade-in reverse">
@@ -179,7 +171,7 @@
             <div class="soundcloud-item">
                 <iframe scrolling="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A1232695780&color=%231c141d&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
                 <div class="soundcloud-caption">
-                    <a href="https://soundcloud.com/edward-jarvis-230857335" target="_blank">Eduardo</a> · <a href="https://soundcloud.com/edward-jarvis-230857335/flume-the-difference-x-glue-bicep-bootleg-mashup" target="_blank">(Flume - The Difference) X (Glue - Bicep) Bootleg mashup</a>
+                    <a href="https://soundcloud.com/edward-jarvis-230857335" target="_blank">Eduardo</a> · <a href="https://soundcloud.com/edward-jarvis-230857335/flume-the-difference-x-glue-bicep-bootleg-mashup" target="_blank">(Flume The Difference) X (Glue Bicep) Bootleg mashup</a>
                 </div>
             </div>
             <div class="soundcloud-item">
@@ -207,20 +199,64 @@
         </div>
     </section>
 
-    <section id="media">
-        <h2>Audio &amp; Video Demos</h2>
-        <div class="grid">
-            <div class="card fade-in">
-                <p>(Just list embeds/players here - e.g., your WAVs, Unity demo videos, band mixes.)</p>
-            </div>
-        </div>
-    </section>
-
     <footer>
         <p>Get in touch: <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a><br>edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
     </footer>
 
     <script>
+        (function makeNoiseTile(){
+            const s = 256;
+            const c = document.createElement('canvas');
+            c.width = c.height = s;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            const img = ctx.createImageData(s, s);
+            const d = img.data;
+
+            for (let i = 0; i < d.length; i += 4) {
+                const v = (Math.random() * 255) | 0;
+                const r = Math.min(255, Math.max(0, v + ((Math.random() * 40) | 0) - 20));
+                const g = Math.min(255, Math.max(0, v + ((Math.random() * 40) | 0) - 20));
+                const b = Math.min(255, Math.max(0, v + ((Math.random() * 40) | 0) - 20));
+
+                d[i] = r;
+                d[i + 1] = g;
+                d[i + 2] = b;
+                d[i + 3] = 255;
+            }
+
+            ctx.putImageData(img, 0, 0);
+            const el = document.querySelector('.bg-noise');
+            if (el) {
+                el.style.backgroundImage = `url(${c.toDataURL('image/png')})`;
+            }
+        })();
+
+        (function scrollNoise(){
+            const el = document.querySelector('.bg-noise');
+            if (!el) return;
+
+            const speedX = 0.10;
+            const speedY = 0.30;
+
+            let last = 0;
+            let t = 0;
+
+            function tick(now){
+                const dt = (now - last) / 1000 || 0;
+                last = now;
+                t += dt;
+
+                const y = window.scrollY || 0;
+                const jx = Math.round((Math.sin(t * 83) * 28));
+                const jy = Math.round((Math.cos(t * 68) * 28));
+
+                el.style.backgroundPosition = `${Math.round(y * speedX) + jx}px ${Math.round(y * speedY) + jy}px`;
+
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        })();
+
         const faders = document.querySelectorAll('.fade-in');
 
         const appearOptions = {
