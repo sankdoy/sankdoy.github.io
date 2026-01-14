@@ -63,6 +63,10 @@
             text-align: center; position: relative; z-index: 2; 
         }
         h1 { font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; font-weight: 700; }
+        .hero-title { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+        .jump-link { display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; border: 1px solid #2a2a2a; background: #111; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75em; text-decoration: none; }
+        .jump-link:hover { border-color: #4a4a4a; }
+        .jump-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
         .subtitle { font-size: 1.1em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; line-height: 1.6; font-weight: 500; }
         .links { font-size: 1em; opacity: 0.7; }
         section { padding: 110px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
@@ -109,6 +113,7 @@
         @media (max-width: 900px) {
             h1 { font-size: 3.4em; }
             h2 { font-size: 2.6em; }
+            .hero-title { flex-direction: column; }
             .project-row,
             .project-row.reverse { flex-direction: column; }
             .project-copy { text-align: center; }
@@ -121,9 +126,12 @@
     <div class="bg-wash" aria-hidden="true"></div>
     <div class="bg-noise" aria-hidden="true"></div>
     <header>
-        <h1>Edward Jarvis</h1>
+        <div class="hero-title">
+            <h1>Edward Jarvis</h1>
+            <a class="jump-link" href="#projects">In a rush? Jump to projects</a>
+        </div>
         <div class="subtitle">Sound Design Student | University of Hertfordshire<br>Specialising in audio for film, TV, and games</div>
-        <div class="links">Hatfield, UK | <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a></div>
+        <div class="links">Hatfield, UK</div>
     </header>
 
     <section id="about">
@@ -253,7 +261,7 @@
     </section>
 
     <footer>
-        <p>Get in touch: <a href="https://x.com/Edward_jarvis1" target="_blank" style="color:#fff;">@Edward_jarvis1 on X</a><br>edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
+        <p>Get in touch: edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
     </footer>
 
     <script>
