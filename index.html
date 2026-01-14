@@ -63,7 +63,7 @@
             text-align: center; position: relative; z-index: 2; 
         }
         h1 { font-size: 6em; letter-spacing: 0.1em; text-transform: uppercase; margin: 0; font-weight: 700; }
-        .hero-title { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+        .hero-title { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
         .jump-link { display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; border: 1px solid #2a2a2a; background: #111; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75em; text-decoration: none; }
         .jump-link:hover { border-color: #4a4a4a; }
         .jump-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
@@ -97,6 +97,28 @@
         .fmod-notes h4 { margin: 0 0 6px; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.08em; color: #fff; }
         .fmod-notes ul { margin: 0; padding-left: 18px; }
         .fmod-notes li { margin-bottom: 6px; }
+        .ab-player { display: flex; flex-direction: column; gap: 16px; align-items: stretch; color: #f2f2f2; text-transform: none; }
+        .ab-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+        .ab-status { font-size: 0.75em; letter-spacing: 0.08em; text-transform: uppercase; color: #9a9a9a; text-align: center; }
+        .ab-waveform { position: relative; width: 100%; height: 150px; border: 1px solid #1f1f1f; background:
+            linear-gradient(90deg,
+                rgba(255, 70, 70, 0.18) 0%,
+                rgba(255, 70, 70, 0.18) calc(var(--split-pct) * 1%),
+                rgba(70, 220, 140, 0.18) calc(var(--split-pct) * 1%),
+                rgba(70, 220, 140, 0.18) 100%),
+            #0b0b0b;
+            overflow: hidden; cursor: pointer; --split-pct: 50; --playhead-pct: 0; }
+        .ab-waveform canvas { width: 100%; height: 100%; display: block; }
+        .ab-waveform::after { content: ''; position: absolute; inset: 0 auto 0 auto; left: calc(var(--playhead-pct) * 1%); width: 2px; background: rgba(255,255,255,0.85); }
+        .ab-switch-handle { position: absolute; inset: 0 auto 0 auto; left: calc(var(--split-pct) * 1%); width: 18px; transform: translateX(-50%); cursor: ew-resize; }
+        .ab-switch-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #3ee07a; transform: translateX(-50%); }
+        .ab-switch-handle::after { content: ''; position: absolute; top: 8px; left: 50%; width: 10px; height: 10px; border-radius: 999px; background: #3ee07a; transform: translateX(-50%); box-shadow: 0 0 0 2px rgba(0,0,0,0.6); }
+        .ab-playhead-handle { position: absolute; inset: 0 auto 0 auto; left: calc(var(--playhead-pct) * 1%); width: 18px; transform: translateX(-50%); cursor: grab; }
+        .ab-playhead-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255,255,255,0.85); transform: translateX(-50%); }
+        .ab-playhead-handle::after { content: ''; position: absolute; bottom: 10px; left: 50%; width: 10px; height: 10px; border-radius: 999px; background: rgba(255,255,255,0.9); transform: translateX(-50%); box-shadow: 0 0 0 2px rgba(0,0,0,0.6); }
+        .ab-label { position: absolute; bottom: 8px; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: #bdbdbd; }
+        .ab-label.ab-left { left: 12px; color: rgba(255, 180, 180, 0.9); }
+        .ab-label.ab-right { right: 12px; text-align: right; color: rgba(170, 255, 205, 0.9); }
         .project-media video,
         .project-media iframe,
         .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
@@ -113,7 +135,6 @@
         @media (max-width: 900px) {
             h1 { font-size: 3.4em; }
             h2 { font-size: 2.6em; }
-            .hero-title { flex-direction: column; }
             .project-row,
             .project-row.reverse { flex-direction: column; }
             .project-copy { text-align: center; }
@@ -215,11 +236,32 @@
             </div>
             <div class="project-row fade-in reverse">
                 <div class="project-media">
-                    <video src="redpandacompress_Unity%20horror%20game%20soundscape%20demo%20%28WARNING%20-%20flashing%20lights%29.mp4" controls loop muted playsinline></video>
+                    <video src="assets/video/redpandacompress_Unity%20horror%20game%20soundscape%20demo%20%28WARNING%20-%20flashing%20lights%29.mp4" controls loop muted playsinline></video>
                 </div>
                 <div class="project-copy">
                     <h3>Horror Game Soundscape (Unity)</h3>
                     <p>An atmospheric sound design implementation in Unity for a horror game section, including layered ambiences, Foley, and dynamic triggers for tension and immersion.</p>
+                </div>
+            </div>
+            <div class="project-row fade-in">
+                <div class="project-media">
+                    <div class="media-frame ab-player">
+                        <div class="ab-controls">
+                            <button id="abPlayPause" class="fmod-btn" disabled>Play</button>
+                        </div>
+                        <div class="ab-status" id="abStatus">Loading A/B audio</div>
+                        <div class="ab-waveform" id="abWaveformWrap">
+                            <canvas id="abWaveform" aria-hidden="true"></canvas>
+                            <div class="ab-switch-handle" id="abSwitchHandle" role="slider" aria-label="Switch point" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0"></div>
+                            <div class="ab-playhead-handle" id="abPlayheadHandle" role="slider" aria-label="Playhead position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+                            <div class="ab-label ab-left">Original</div>
+                            <div class="ab-label ab-right">Restored</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="project-copy">
+                    <h3>A/B Restoration Comparison</h3>
+                    <p>Waveform player with a live switch point between the original and restored audio. Drag the marker to choose where the playback flips between the two versions.</p>
                 </div>
             </div>
         </div>

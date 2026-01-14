@@ -10,6 +10,13 @@ const TEST_EVENT = "event:/Main"; // MUST match exactly (copy event path in FMOD
 
 const DEFAULT_INTENSITY = 0;
 const DEFAULT_HEALTH = 100;
+const AB_FILES = {
+  original: "assets/audio/Before.wav",
+  restored: "assets/audio/After.wav"
+};
+const AB_SWITCH_DEFAULT = 50;
+const AB_CROSSFADE_SECONDS = 0.012;
+const AB_FADE_SECONDS = 0.2;
 
 let FMOD = null;
 let studioSystem = null;
@@ -26,6 +33,35 @@ let analyzerState = {
   data: null,
   rafId: 0,
   connected: false
+};
+let abState = {
+  audioCtx: null,
+  bufferA: null,
+  bufferB: null,
+  duration: 0,
+  startTime: 0,
+  offset: 0,
+  switchPct: AB_SWITCH_DEFAULT,
+  switchTime: 0,
+  isPlaying: false,
+  activeB: null,
+  sourceA: null,
+  sourceB: null,
+  gainA: null,
+  gainB: null,
+  canvas: null,
+  ctx: null,
+  wrap: null,
+  handle: null,
+  status: null,
+  playBtn: null,
+  playheadHandle: null,
+  peaks: null,
+  lastWidth: 0,
+  rafId: 0,
+  dragging: false,
+  draggingPlayhead: false,
+  wasPlayingBeforeDrag: false
 };
 
 function check(result, label) {
@@ -210,6 +246,330 @@ function createEventInstance() {
   isPaused = false;
   applyParameters();
   setupAnalyzer();
+}
+
+async function fetchAndDecodeAudio(ctx, url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  const data = await res.arrayBuffer();
+  return await ctx.decodeAudioData(data);
+}
+
+function stopAbSources() {
+  if (abState.sourceA) {
+    try { abState.sourceA.stop(); } catch (_) {}
+  }
+  if (abState.sourceB) {
+    try { abState.sourceB.stop(); } catch (_) {}
+  }
+  abState.sourceA = null;
+  abState.sourceB = null;
+  abState.gainA = null;
+  abState.gainB = null;
+  abState.masterGain = null;
+}
+
+function applyAbSwitch(currentTime, force) {
+  if (!abState.gainA || !abState.gainB || !abState.audioCtx) return;
+  const shouldB = currentTime >= abState.switchTime;
+  if (!force && abState.activeB === shouldB) return;
+
+  const now = abState.audioCtx.currentTime;
+  abState.gainA.gain.cancelScheduledValues(now);
+  abState.gainB.gain.cancelScheduledValues(now);
+  abState.gainA.gain.setValueAtTime(abState.gainA.gain.value, now);
+  abState.gainB.gain.setValueAtTime(abState.gainB.gain.value, now);
+  abState.gainA.gain.linearRampToValueAtTime(shouldB ? 0 : 1, now + AB_CROSSFADE_SECONDS);
+  abState.gainB.gain.linearRampToValueAtTime(shouldB ? 1 : 0, now + AB_CROSSFADE_SECONDS);
+  abState.activeB = shouldB;
+}
+
+function updateAbPlayhead(currentTime) {
+  if (!abState.wrap || !abState.duration) return;
+  const pct = Math.max(0, Math.min(1, currentTime / abState.duration)) * 100;
+  abState.wrap.style.setProperty("--playhead-pct", pct.toFixed(2));
+  if (abState.playheadHandle) {
+    abState.playheadHandle.setAttribute("aria-valuenow", Math.round(pct).toString());
+  }
+}
+
+function setAbSwitchPct(pct, force) {
+  if (!abState.wrap) return;
+  const clamped = Math.max(0, Math.min(100, pct));
+  abState.switchPct = clamped;
+  abState.switchTime = (abState.duration || 0) * (clamped / 100);
+  abState.wrap.style.setProperty("--split-pct", clamped.toFixed(2));
+  if (abState.handle) abState.handle.setAttribute("aria-valuenow", Math.round(clamped).toString());
+  if (abState.isPlaying) {
+    const current = abState.audioCtx ? abState.audioCtx.currentTime - abState.startTime : abState.offset;
+    applyAbSwitch(current, force);
+  }
+}
+
+function drawAbWaveform() {
+  if (!abState.canvas || !abState.ctx || !abState.bufferA) return;
+  const rect = abState.wrap.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(rect.width * dpr));
+  const height = Math.max(1, Math.floor(rect.height * dpr));
+  if (abState.canvas.width !== width || abState.canvas.height !== height) {
+    abState.canvas.width = width;
+    abState.canvas.height = height;
+  }
+  abState.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const pixelWidth = Math.floor(rect.width);
+  if (!abState.peaks || abState.lastWidth !== pixelWidth) {
+    const data = abState.bufferA.getChannelData(0);
+    const block = Math.max(1, Math.floor(data.length / pixelWidth));
+    abState.peaks = new Float32Array(pixelWidth);
+    for (let i = 0; i < pixelWidth; i += 1) {
+      const start = i * block;
+      const end = Math.min(start + block, data.length);
+      let max = 0;
+      for (let j = start; j < end; j += 1) {
+        const v = Math.abs(data[j]);
+        if (v > max) max = v;
+      }
+      abState.peaks[i] = max;
+    }
+    abState.lastWidth = pixelWidth;
+  }
+
+  const mid = rect.height / 2;
+  const amp = rect.height * 0.45;
+  abState.ctx.clearRect(0, 0, rect.width, rect.height);
+  abState.ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+  abState.ctx.lineWidth = 1.5;
+  abState.ctx.beginPath();
+  for (let x = 0; x < abState.peaks.length; x += 1) {
+    const y = mid - abState.peaks[x] * amp;
+    if (x === 0) {
+      abState.ctx.moveTo(x, y);
+    } else {
+      abState.ctx.lineTo(x, y);
+    }
+  }
+  for (let x = abState.peaks.length - 1; x >= 0; x -= 1) {
+    const y = mid + abState.peaks[x] * amp;
+    abState.ctx.lineTo(x, y);
+  }
+  abState.ctx.closePath();
+  abState.ctx.stroke();
+}
+
+function startAbPlayback(offset) {
+  if (!abState.audioCtx || !abState.bufferA || !abState.bufferB) return;
+  stopAbSources();
+  abState.sourceA = abState.audioCtx.createBufferSource();
+  abState.sourceB = abState.audioCtx.createBufferSource();
+  abState.gainA = abState.audioCtx.createGain();
+  abState.gainB = abState.audioCtx.createGain();
+  abState.masterGain = abState.audioCtx.createGain();
+  abState.sourceA.buffer = abState.bufferA;
+  abState.sourceB.buffer = abState.bufferB;
+  abState.sourceA.loop = true;
+  abState.sourceB.loop = true;
+  abState.sourceA.loopStart = 0;
+  abState.sourceB.loopStart = 0;
+  abState.sourceA.loopEnd = abState.duration;
+  abState.sourceB.loopEnd = abState.duration;
+  abState.sourceA.connect(abState.gainA).connect(abState.masterGain).connect(abState.audioCtx.destination);
+  abState.sourceB.connect(abState.gainB).connect(abState.masterGain).connect(abState.audioCtx.destination);
+  const now = abState.audioCtx.currentTime;
+  abState.masterGain.gain.setValueAtTime(0, now);
+  abState.masterGain.gain.linearRampToValueAtTime(1, now + AB_FADE_SECONDS);
+  abState.sourceA.start(0, offset);
+  abState.sourceB.start(0, offset);
+  abState.startTime = abState.audioCtx.currentTime - offset;
+  abState.isPlaying = true;
+  abState.activeB = null;
+  applyAbSwitch(offset, true);
+}
+
+function updateAbLoop() {
+  if (!abState.isPlaying || !abState.audioCtx) return;
+  const elapsed = abState.audioCtx.currentTime - abState.startTime;
+  const current = abState.duration ? (elapsed % abState.duration) : 0;
+  updateAbPlayhead(current);
+  applyAbSwitch(current, false);
+  abState.rafId = requestAnimationFrame(updateAbLoop);
+}
+
+function fadeOutAndStop() {
+  if (!abState.audioCtx || !abState.masterGain) {
+    stopAbSources();
+    return;
+  }
+  const now = abState.audioCtx.currentTime;
+  abState.masterGain.gain.cancelScheduledValues(now);
+  abState.masterGain.gain.setValueAtTime(abState.masterGain.gain.value, now);
+  abState.masterGain.gain.linearRampToValueAtTime(0, now + AB_FADE_SECONDS);
+  const stopTime = now + AB_FADE_SECONDS;
+  if (abState.sourceA) {
+    try { abState.sourceA.stop(stopTime); } catch (_) {}
+  }
+  if (abState.sourceB) {
+    try { abState.sourceB.stop(stopTime); } catch (_) {}
+  }
+  setTimeout(() => {
+    stopAbSources();
+  }, Math.ceil((AB_FADE_SECONDS + 0.02) * 1000));
+}
+
+function seekAbTo(time) {
+  abState.offset = Math.max(0, Math.min(abState.duration, time));
+  if (abState.isPlaying) {
+    startAbPlayback(abState.offset);
+    updateAbLoop();
+  } else {
+    updateAbPlayhead(abState.offset);
+  }
+}
+
+async function initAbPlayer() {
+  abState.wrap = document.getElementById("abWaveformWrap");
+  abState.canvas = document.getElementById("abWaveform");
+  abState.handle = document.getElementById("abSwitchHandle");
+  abState.playheadHandle = document.getElementById("abPlayheadHandle");
+  abState.status = document.getElementById("abStatus");
+  abState.playBtn = document.getElementById("abPlayPause");
+  if (!abState.wrap || !abState.canvas || !abState.handle) return;
+
+  abState.ctx = abState.canvas.getContext("2d");
+  setAbSwitchPct(AB_SWITCH_DEFAULT, true);
+
+  abState.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    const [bufferA, bufferB] = await Promise.all([
+      fetchAndDecodeAudio(abState.audioCtx, AB_FILES.original),
+      fetchAndDecodeAudio(abState.audioCtx, AB_FILES.restored)
+    ]);
+    abState.bufferA = bufferA;
+    abState.bufferB = bufferB;
+    abState.duration = Math.min(bufferA.duration, bufferB.duration);
+    abState.switchTime = abState.duration * (abState.switchPct / 100);
+    drawAbWaveform();
+    window.addEventListener("resize", drawAbWaveform);
+    if (abState.status) abState.status.textContent = "A/B audio ready";
+    if (abState.playBtn) abState.playBtn.disabled = false;
+  } catch (err) {
+    console.error(err);
+    if (abState.status) abState.status.textContent = "A/B audio failed to load";
+    return;
+  }
+
+  abState.playBtn?.addEventListener("click", async () => {
+    if (!abState.audioCtx) return;
+    await abState.audioCtx.resume();
+    if (!abState.isPlaying) {
+      startAbPlayback(abState.offset);
+      updateAbLoop();
+      abState.playBtn.textContent = "Pause";
+      return;
+    }
+    abState.offset = Math.min(
+      abState.duration,
+      Math.max(0, abState.audioCtx.currentTime - abState.startTime + AB_FADE_SECONDS)
+    );
+    abState.isPlaying = false;
+    fadeOutAndStop();
+    updateAbPlayhead(abState.offset);
+    abState.playBtn.textContent = "Play";
+  });
+
+  const updateSwitchFromPointer = (event) => {
+    const rect = abState.wrap.getBoundingClientRect();
+    const pct = ((event.clientX - rect.left) / rect.width) * 100;
+    setAbSwitchPct(pct, true);
+  };
+
+  abState.handle.addEventListener("pointerdown", (event) => {
+    abState.dragging = true;
+    abState.handle.setPointerCapture(event.pointerId);
+    updateSwitchFromPointer(event);
+  });
+
+  abState.handle.addEventListener("pointermove", (event) => {
+    if (!abState.dragging) return;
+    updateSwitchFromPointer(event);
+  });
+
+  const stopDrag = (event) => {
+    if (!abState.dragging) return;
+    abState.dragging = false;
+    abState.handle.releasePointerCapture(event.pointerId);
+  };
+
+  abState.handle.addEventListener("pointerup", stopDrag);
+  abState.handle.addEventListener("pointercancel", stopDrag);
+
+  abState.handle.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") {
+      setAbSwitchPct(abState.switchPct - 1, true);
+      event.preventDefault();
+    } else if (event.key === "ArrowRight") {
+      setAbSwitchPct(abState.switchPct + 1, true);
+      event.preventDefault();
+    }
+  });
+
+  const updatePlayheadFromPointer = (event) => {
+    const rect = abState.wrap.getBoundingClientRect();
+    const pct = ((event.clientX - rect.left) / rect.width);
+    if (Number.isNaN(pct)) return;
+    const time = Math.max(0, Math.min(1, pct)) * abState.duration;
+    updateAbPlayhead(time);
+    abState.offset = time;
+  };
+
+  abState.playheadHandle?.addEventListener("pointerdown", (event) => {
+    abState.draggingPlayhead = true;
+    abState.wasPlayingBeforeDrag = abState.isPlaying;
+    if (abState.isPlaying) {
+      abState.offset = Math.min(
+        abState.duration,
+        Math.max(0, abState.audioCtx.currentTime - abState.startTime + AB_FADE_SECONDS)
+      );
+      abState.isPlaying = false;
+      fadeOutAndStop();
+    }
+    abState.playheadHandle.setPointerCapture(event.pointerId);
+    updatePlayheadFromPointer(event);
+  });
+
+  abState.playheadHandle?.addEventListener("pointermove", (event) => {
+    if (!abState.draggingPlayhead) return;
+    updatePlayheadFromPointer(event);
+  });
+
+  const stopPlayheadDrag = (event) => {
+    if (!abState.draggingPlayhead) return;
+    abState.draggingPlayhead = false;
+    abState.playheadHandle.releasePointerCapture(event.pointerId);
+    if (abState.wasPlayingBeforeDrag) {
+      startAbPlayback(abState.offset);
+      updateAbLoop();
+      if (abState.playBtn) abState.playBtn.textContent = "Pause";
+    } else {
+      if (abState.playBtn) abState.playBtn.textContent = "Play";
+    }
+  };
+
+  abState.playheadHandle?.addEventListener("pointerup", stopPlayheadDrag);
+  abState.playheadHandle?.addEventListener("pointercancel", stopPlayheadDrag);
+
+  abState.playheadHandle?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") {
+      updateAbPlayhead(Math.max(0, abState.offset - abState.duration * 0.01));
+      abState.offset = Math.max(0, abState.offset - abState.duration * 0.01);
+      event.preventDefault();
+    } else if (event.key === "ArrowRight") {
+      updateAbPlayhead(Math.min(abState.duration, abState.offset + abState.duration * 0.01));
+      abState.offset = Math.min(abState.duration, abState.offset + abState.duration * 0.01);
+      event.preventDefault();
+    }
+  });
 }
 
 async function fetchArrayBuffer(url) {
@@ -405,4 +765,6 @@ window.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+
+  initAbPlayer();
 });
