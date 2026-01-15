@@ -122,6 +122,8 @@
         .project-media video,
         .project-media iframe,
         .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
+        .video-embed { position: relative; width: 100%; padding-top: 56.25%; margin-top: 24px; }
+        .video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
         .soundcloud-list { max-width: 1000px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 28px; }
         .soundcloud-list iframe { width: 100%; height: 166px; border: 0; display: block; }
         .soundcloud-caption { font-size: 0.75em; color: #bdbdbd; letter-spacing: 0.03em; margin-top: 8px; }
@@ -298,6 +300,9 @@
             <div class="card fade-in">
                 <h3>Live Band Recording &amp; Mixing</h3>
                 <p>Recorded and mixed several live band performances, delivering final stems ready for video editors to sync with footage.</p>
+                <div class="video-embed">
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/Eps5JaDRsJk?si=ECzqHL9F39-KZyDm" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                </div>
             </div>
         </div>
     </section>
