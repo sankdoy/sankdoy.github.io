@@ -24,6 +24,11 @@ let eventDesc = null;
 let eventInstance = null;
 let started = false;
 let isPaused = false;
+let soundCloudWidgets = [];
+let isCoordinatingAudio = false;
+const audioUi = {
+  toggleBtn: null
+};
 let currentIntensity = DEFAULT_INTENSITY;
 let currentHealth = DEFAULT_HEALTH;
 let analyzerState = {
@@ -63,6 +68,61 @@ let abState = {
   draggingPlayhead: false,
   wasPlayingBeforeDrag: false
 };
+
+function pauseFMOD() {
+  if (!eventInstance || isPaused) return;
+  setPaused(true);
+  if (audioUi.toggleBtn) audioUi.toggleBtn.textContent = "Play";
+}
+
+function pauseAbPlayback() {
+  if (!abState.isPlaying || !abState.audioCtx) return;
+  abState.offset = Math.min(
+    abState.duration,
+    Math.max(0, abState.audioCtx.currentTime - abState.startTime + AB_FADE_SECONDS)
+  );
+  abState.isPlaying = false;
+  fadeOutAndStop();
+  updateAbPlayhead(abState.offset);
+  if (abState.playBtn) abState.playBtn.textContent = "Play";
+}
+
+function pauseSoundCloud() {
+  if (soundCloudWidgets.length) {
+    soundCloudWidgets.forEach((widget) => {
+      try { widget.pause(); } catch (_) {}
+    });
+    return;
+  }
+  const iframes = document.querySelectorAll('iframe[src*="w.soundcloud.com/player"]');
+  iframes.forEach((frame) => {
+    try {
+      frame.contentWindow?.postMessage(JSON.stringify({ method: "pause" }), "*");
+    } catch (_) {}
+  });
+}
+
+function pauseHtmlMedia(exceptEl) {
+  const mediaEls = document.querySelectorAll("audio,video");
+  mediaEls.forEach((el) => {
+    if (el === exceptEl) return;
+    if (!el.paused && typeof el.pause === "function") {
+      try { el.pause(); } catch (_) {}
+    }
+  });
+}
+
+function pauseAllAudio({ except = {} } = {}) {
+  if (isCoordinatingAudio) return;
+  isCoordinatingAudio = true;
+
+  if (!except.fmod) pauseFMOD();
+  if (!except.ab) pauseAbPlayback();
+  if (!except.soundcloud) pauseSoundCloud();
+  pauseHtmlMedia(except.media);
+
+  isCoordinatingAudio = false;
+}
 
 function check(result, label) {
   const OK = typeof FMOD.OK === "number"
@@ -244,6 +304,7 @@ function createEventInstance() {
   if (!eventInstance) throw new Error("createInstance returned 0 handle.");
   check(eventInstance.start(), "eventInstance.start");
   isPaused = false;
+  pauseAllAudio({ except: { fmod: true } });
   applyParameters();
   setupAnalyzer();
 }
@@ -463,19 +524,13 @@ async function initAbPlayer() {
     if (!abState.audioCtx) return;
     await abState.audioCtx.resume();
     if (!abState.isPlaying) {
+      pauseAllAudio({ except: { ab: true } });
       startAbPlayback(abState.offset);
       updateAbLoop();
       abState.playBtn.textContent = "Pause";
       return;
     }
-    abState.offset = Math.min(
-      abState.duration,
-      Math.max(0, abState.audioCtx.currentTime - abState.startTime + AB_FADE_SECONDS)
-    );
-    abState.isPlaying = false;
-    fadeOutAndStop();
-    updateAbPlayhead(abState.offset);
-    abState.playBtn.textContent = "Play";
+    pauseAbPlayback();
   });
 
   const updateSwitchFromPointer = (event) => {
@@ -548,6 +603,7 @@ async function initAbPlayer() {
     abState.draggingPlayhead = false;
     abState.playheadHandle.releasePointerCapture(event.pointerId);
     if (abState.wasPlayingBeforeDrag) {
+      pauseAllAudio({ except: { ab: true } });
       startAbPlayback(abState.offset);
       updateAbLoop();
       if (abState.playBtn) abState.playBtn.textContent = "Pause";
@@ -688,11 +744,41 @@ window.addEventListener("DOMContentLoaded", () => {
   const healthSlider = document.getElementById("healthSlider");
   const intensityValue = document.getElementById("intensityValue");
   const healthValue = document.getElementById("healthValue");
+  const soundCloudFrames = document.querySelectorAll('iframe[src*="w.soundcloud.com/player"]');
 
   if (!startBtn) {
     console.warn('Missing button with id="startAudio"');
     return;
   }
+
+  audioUi.toggleBtn = toggleBtn;
+
+  const initSoundCloudWidgets = () => {
+    if (!window.SC || !window.SC.Widget) return false;
+    soundCloudWidgets = Array.from(soundCloudFrames, (frame) => {
+      const widget = window.SC.Widget(frame);
+      widget.bind(window.SC.Widget.Events.PLAY, () => {
+        pauseAllAudio({ except: { soundcloud: true } });
+      });
+      return widget;
+    });
+    return true;
+  };
+
+  if (!initSoundCloudWidgets() && soundCloudFrames.length) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (initSoundCloudWidgets() || tries > 20) clearInterval(timer);
+    }, 150);
+  }
+
+  document.addEventListener("play", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLMediaElement) {
+      pauseAllAudio({ except: { media: target } });
+    }
+  }, true);
 
   function updateValue(el, value) {
     if (el) el.textContent = String(value);
@@ -720,6 +806,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   startBtn.addEventListener("click", () => {
     startFMOD().then(() => {
+      pauseAllAudio({ except: { fmod: true } });
       startBtn.disabled = true;
       startBtn.textContent = "Audio ready";
       if (toggleBtn) toggleBtn.disabled = false;
@@ -736,6 +823,7 @@ window.addEventListener("DOMContentLoaded", () => {
     toggleBtn.addEventListener("click", () => {
       if (!eventInstance) return;
       const nextPaused = !isPaused;
+      if (!nextPaused) pauseAllAudio({ except: { fmod: true } });
       setPaused(nextPaused);
       toggleBtn.textContent = nextPaused ? "Play" : "Pause";
     });

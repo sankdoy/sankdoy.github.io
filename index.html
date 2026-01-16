@@ -69,6 +69,10 @@
         .jump-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
         .subtitle { font-size: 1.1em; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.8; margin: 20px 0; line-height: 1.6; font-weight: 500; }
         .links { font-size: 1em; opacity: 0.7; }
+        .social-icons { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }
+        .social-icons a { width: 38px; height: 38px; border-radius: 999px; border: 1px solid #2a2a2a; background: #111; color: #58a6ff; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.2s, color 0.2s, border-color 0.2s; }
+        .social-icons a:hover { color: #7bb8ff; border-color: #4a4a4a; transform: translateY(-1px); }
+        .social-icons svg { width: 18px; height: 18px; display: block; }
         section { padding: 110px 20px; max-width: 1200px; margin: auto; position: relative; z-index: 2; }
         section + section { margin-top: 20px; }
         h2 { font-size: 4em; text-transform: uppercase; text-align: center; margin-bottom: 60px; font-weight: 700; }
@@ -129,6 +133,8 @@
         .soundcloud-caption { font-size: 0.75em; color: #bdbdbd; letter-spacing: 0.03em; margin-top: 8px; }
         .soundcloud-caption a { color: #bdbdbd; text-decoration: none; }
         footer { position: relative; text-align: center; padding: 60px; opacity: 0.6; font-size: 0.9em; z-index: 2; }
+        footer a { color: #58a6ff; text-decoration: none; }
+        footer a:hover { color: #7bb8ff; }
         .body-copy { text-align: center; max-width: 860px; margin: auto; font-size: 1.05em; line-height: 1.7; }
         .body-copy p { margin: 0 0 18px; }
         .body-copy p:last-child { margin-bottom: 0; }
@@ -150,6 +156,18 @@
     <div class="bg-noise" aria-hidden="true"></div>
     <header>
         <div class="hero-title">
+            <div class="social-icons">
+                <a href="https://www.linkedin.com/in/edward-jarvis-039232283/" aria-label="LinkedIn profile" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.03-1.85-3.03-1.86 0-2.14 1.45-2.14 2.94v5.66H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.78C.8 0 0 .77 0 1.72v20.56C0 23.23.8 24 1.78 24h20.44C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/>
+                    </svg>
+                </a>
+                <a href="https://soundcloud.com/edward-jarvis-230857335" aria-label="SoundCloud profile" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M17.5 10.5a4.5 4.5 0 0 0-1.37.21 6.02 6.02 0 0 0-11.03 1.8A3.75 3.75 0 0 0 6.75 20H17.5a3.25 3.25 0 0 0 0-6.5zm-9.75 7.25H6.2a2.25 2.25 0 0 1-.3-4.48l.1-.02.02-.1a4.52 4.52 0 0 1 8.43-1.56l.23.46.46-.22a3 3 0 1 1 2.36 5.92H7.75z"/>
+                    </svg>
+                </a>
+            </div>
             <h1>Edward Jarvis</h1>
             <a class="jump-link" href="#projects">In a rush? Jump to projects</a>
         </div>
@@ -301,14 +319,14 @@
                 <h3>Live Band Recording &amp; Mixing</h3>
                 <p>Recorded and mixed several live band performances, delivering final stems ready for video editors to sync with footage.</p>
                 <div class="video-embed">
-                    <iframe width="560" height="315" src="https://www.youtube.com/embed/Eps5JaDRsJk?si=ECzqHL9F39-KZyDm" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/4lNbiTJnIz4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                 </div>
             </div>
         </div>
     </section>
 
     <footer>
-        <p>Get in touch: edwardjarvis.com | &copy; 2026 Edward Jarvis</p>
+        <p>LinkedIn: <a href="https://www.linkedin.com/in/edward-jarvis-039232283/" rel="noopener noreferrer">Edward Jarvis</a> | &copy; 2026 Edward Jarvis</p>
     </footer>
 
     <script>
@@ -319,6 +337,7 @@
         };
     </script>
     <script src="fmod/fmodstudio.js?v12"></script>
+    <script src="https://w.soundcloud.com/player/api.js"></script>
     <script src="main.js?v12" defer></script>
 
     <script>
