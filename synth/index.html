@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edward Jarvis Synthesizer</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="ej-synth">
+    <!-- Header -->
+    <div class="ejs-header">
+      <span class="ejs-title">EJ SYNTH</span>
+      <button id="power-btn" class="power-off">OFF</button>
+      <div class="ejs-hctl">
+        <label>BPM</label>
+        <input type="number" id="bpm" value="120" min="20" max="300">
+      </div>
+      <div class="ejs-hctl">
+        <label>GAIN</label>
+        <input type="range" id="main-gain" min="0" max="1" step="0.01" value="0.7" data-default="0.7">
+        <span id="main-gain-val">0.70</span>
+      </div>
+      <div class="ejs-hctl">
+        <label>TRANSP</label>
+        <input type="number" id="transpose" value="0" min="-24" max="24">
+      </div>
+    </div>
+
+    <!-- Main layout -->
+    <div class="ejs-main-grid">
+
+      <!-- Oscillators + Noise -->
+      <div class="ejs-panel" id="osc-section">
+        <div class="ejs-panel-head">
+          <span>OSCILLATORS</span>
+        </div>
+        <div class="ejs-osc-grid">
+          <div class="ejs-osc" data-voice="0">
+              <div class="ejs-osc-top">
+                <span class="ejs-osc-label">1</span>
+                <select class="waveform-select">
+                  <option value="sine">Sin</option>
+                  <option value="square">Sqr</option>
+                  <option value="triangle">Tri</option>
+                  <option value="sawtooth">Saw</option>
+                </select>
+                <div class="ejs-knob-group">
+                  <label>Oct</label>
+                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
+                  <span class="overtone-val">1.00</span>
+                </div>
+                <div class="ejs-knob-group">
+                  <label>Vol</label>
+                  <input type="range" class="voice-gain" min="0" max="1" step="0.01" value="0.5" data-default="0.5">
+                </div>
+              </div>
+            </div>
+          <div class="ejs-osc" data-voice="1">
+              <div class="ejs-osc-top">
+                <span class="ejs-osc-label">2</span>
+                <select class="waveform-select">
+                  <option value="sine">Sin</option>
+                  <option value="square">Sqr</option>
+                  <option value="triangle">Tri</option>
+                  <option value="sawtooth" selected>Saw</option>
+                </select>
+                <div class="ejs-knob-group">
+                  <label>Oct</label>
+                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
+                  <span class="overtone-val">1.00</span>
+                </div>
+                <div class="ejs-knob-group">
+                  <label>Vol</label>
+                  <input type="range" class="voice-gain" min="0" max="1" step="0.01" value="0.5" data-default="0.5">
+                </div>
+              </div>
+            </div>
+          <div class="ejs-osc" data-voice="2">
+              <div class="ejs-osc-top">
+                <span class="ejs-osc-label">3</span>
+                <select class="waveform-select">
+                  <option value="sine">Sin</option>
+                  <option value="square">Sqr</option>
+                  <option value="triangle" selected>Tri</option>
+                  <option value="sawtooth">Saw</option>
+                </select>
+                <div class="ejs-knob-group">
+                  <label>Oct</label>
+                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
+                  <span class="overtone-val">1.00</span>
+                </div>
+                <div class="ejs-knob-group">
+                  <label>Vol</label>
+                  <input type="range" class="voice-gain" min="0" max="1" step="0.01" value="0.5" data-default="0.5">
+                </div>
+              </div>
+            </div>
+          <div class="ejs-osc" data-voice="3">
+              <div class="ejs-osc-top">
+                <span class="ejs-osc-label">4</span>
+                <select class="waveform-select">
+                  <option value="sine">Sin</option>
+                  <option value="square" selected>Sqr</option>
+                  <option value="triangle">Tri</option>
+                  <option value="sawtooth">Saw</option>
+                </select>
+                <div class="ejs-knob-group">
+                  <label>Oct</label>
+                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
+                  <span class="overtone-val">1.00</span>
+                </div>
+                <div class="ejs-knob-group">
+                  <label>Vol</label>
+                  <input type="range" class="voice-gain" min="0" max="1" step="0.01" value="0.5" data-default="0.5">
+                </div>
+              </div>
+            </div>
+          <!-- Noise -->
+          <div class="ejs-osc ejs-noise-box" id="noise-unit">
+            <div class="ejs-osc-top">
+              <div class="ejs-lfo-head">
+                <label class="ejs-toggle"><input type="checkbox" id="noise-toggle"><span class="ejs-toggle-slider"></span></label>
+                <span class="ejs-osc-label">NOISE</span>
+              </div>
+              <div class="ejs-knob-group">
+                <label>Level</label>
+                <input type="range" id="noise-level" min="0" max="1" step="0.01" value="0" data-default="0">
+                <span id="noise-level-val">0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADSR -->
+      <div class="ejs-panel" id="adsr-section">
+        <div class="ejs-panel-head"><span>ENVELOPE</span></div>
+        <div class="ejs-adsr-row">
+          <canvas id="adsr-canvas" width="200" height="80"></canvas>
+          <div class="ejs-adsr-knobs">
+            <div class="ejs-knob-group">
+              <label>A</label>
+              <input type="range" id="attack" min="0.001" max="2" step="0.001" value="0.01" data-default="0.01">
+              <span id="attack-val">10ms</span>
+            </div>
+            <div class="ejs-knob-group">
+              <label>D</label>
+              <input type="range" id="decay" min="0.001" max="2" step="0.001" value="0.1" data-default="0.1">
+              <span id="decay-val">100ms</span>
+            </div>
+            <div class="ejs-knob-group">
+              <label>S</label>
+              <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.7" data-default="0.7">
+              <span id="sustain-val">0.70</span>
+            </div>
+            <div class="ejs-knob-group">
+              <label>R</label>
+              <input type="range" id="release" min="0.001" max="5" step="0.001" value="0.3" data-default="0.3">
+              <span id="release-val">300ms</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parametric EQ -->
+      <div class="ejs-panel" id="eq-section">
+        <div class="ejs-panel-head">
+          <span>PARAMETRIC EQ</span>
+          <div class="ejs-band-toggles">
+            <button class="ejs-band-btn active" data-band="highpass" style="--band-color:#ff6b6b">HP</button>
+            <button class="ejs-band-btn active" data-band="peak" style="--band-color:#4a9eff">PK</button>
+            <button class="ejs-band-btn active" data-band="lowpass" style="--band-color:#3ddc84">LP</button>
+          </div>
+        </div>
+        <canvas id="eq-canvas" width="700" height="140"></canvas>
+        <div class="ejs-eq-controls">
+          <div class="ejs-eq-band" data-band="highpass">
+            <span class="ejs-eq-band-label" style="color:#ff6b6b">HP</span>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="20" max="2000" step="1" value="80" data-default="80"><span class="eq-freq-val">80 Hz</span></div>
+            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
+          </div>
+          <div class="ejs-eq-band" data-band="peak">
+            <span class="ejs-eq-band-label" style="color:#4a9eff">PEAK</span>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="80" max="16000" step="1" value="1000" data-default="1000"><span class="eq-freq-val">1.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Gain</label><input type="range" class="eq-gain-db" min="-18" max="18" step="0.1" value="0" data-default="0"><span class="eq-gain-val">0.0dB</span></div>
+            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="1" data-default="1"><span class="eq-q-val">1.0</span></div>
+          </div>
+          <div class="ejs-eq-band" data-band="lowpass">
+            <span class="ejs-eq-band-label" style="color:#3ddc84">LP</span>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="200" max="20000" step="1" value="18000" data-default="18000"><span class="eq-freq-val">18.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LFO -->
+      <div class="ejs-panel" id="lfo-section">
+        <div class="ejs-panel-head"><span>LFO MODULATION</span></div>
+        <div class="ejs-lfo-grid">
+          <div class="ejs-lfo" data-lfo="0">
+            <div class="ejs-lfo-head">
+              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
+              <span>Gain</span>
+            </div>
+            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
+            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
+            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="1" step="0.01" value="0.5" data-default="0.5"><span class="lfo-strength-val">0.50</span></div>
+          </div>
+          <div class="ejs-lfo" data-lfo="1">
+            <div class="ejs-lfo-head">
+              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
+              <span>Pitch</span>
+            </div>
+            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
+            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
+            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="100" step="1" value="0" data-default="0"><span class="lfo-strength-val">0</span></div>
+          </div>
+          <div class="ejs-lfo" data-lfo="2">
+            <div class="ejs-lfo-head">
+              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
+              <span>Filter</span>
+            </div>
+            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
+            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
+            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="5000" step="10" value="0" data-default="0"><span class="lfo-strength-val">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Effects -->
+      <div class="ejs-panel" id="fx-section">
+        <div class="ejs-panel-head"><span>EFFECTS</span></div>
+        <div class="ejs-fx-grid">
+          <div class="ejs-fx" id="distortion-unit">
+            <div class="ejs-fx-head">
+              <label class="ejs-toggle"><input type="checkbox" id="distortion-bypass"><span class="ejs-toggle-slider"></span></label>
+              <span>Distortion</span>
+            </div>
+            <div class="ejs-knob-group"><label>Drive</label><input type="range" id="distortion-drive" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-drive-val">0.00</span></div>
+            <div class="ejs-knob-group"><label>Tone</label><input type="range" id="distortion-tone" min="200" max="20000" step="1" value="8000" data-default="8000"><span id="distortion-tone-val">8.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="distortion-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-mix-val">0.00</span></div>
+          </div>
+          <div class="ejs-fx" id="reverb-unit">
+            <div class="ejs-fx-head">
+              <label class="ejs-toggle"><input type="checkbox" id="reverb-bypass"><span class="ejs-toggle-slider"></span></label>
+              <span>Reverb</span>
+            </div>
+            <div class="ejs-knob-group"><label>Size</label><input type="range" id="reverb-size" min="0.1" max="6" step="0.1" value="2.5" data-default="2.5"><span id="reverb-size-val">2.5s</span></div>
+            <div class="ejs-knob-group"><label>Damp</label><input type="range" id="reverb-damp" min="500" max="20000" step="10" value="8000" data-default="8000"><span id="reverb-damp-val">8.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="reverb-mix" min="0" max="1" step="0.01" value="0.2" data-default="0.2"><span id="reverb-mix-val">0.20</span></div>
+          </div>
+          <div class="ejs-fx" id="comb-unit">
+            <div class="ejs-fx-head">
+              <label class="ejs-toggle"><input type="checkbox" id="comb-bypass"><span class="ejs-toggle-slider"></span></label>
+              <span>Comb Filter</span>
+            </div>
+            <div class="ejs-knob-group"><label>Delay</label><input type="range" id="comb-delay" min="0.1" max="50" step="0.1" value="5" data-default="5"><span id="comb-delay-val">5.0ms</span></div>
+            <div class="ejs-knob-group"><label>Fdbk</label><input type="range" id="comb-feedback" min="0" max="0.99" step="0.01" value="0.5" data-default="0.5"><span id="comb-feedback-val">0.50</span></div>
+            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="comb-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="comb-mix-val">0.00</span></div>
+          </div>
+          <div class="ejs-fx" id="delay-unit">
+            <div class="ejs-fx-head">
+              <label class="ejs-toggle"><input type="checkbox" id="delay-bypass"><span class="ejs-toggle-slider"></span></label>
+              <span>Delay</span>
+            </div>
+            <div class="ejs-knob-group"><label>Time</label><input type="range" id="delay-time" min="0.01" max="2" step="0.01" value="0.3" data-default="0.3"><span id="delay-time-val">300ms</span></div>
+            <div class="ejs-knob-group"><label>Fdbk</label><input type="range" id="delay-feedback" min="0" max="0.95" step="0.01" value="0.3" data-default="0.3"><span id="delay-feedback-val">0.30</span></div>
+            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="delay-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="delay-mix-val">0.00</span></div>
+          </div>
+          <div class="ejs-fx" id="limiter-unit">
+            <div class="ejs-fx-head">
+              <label class="ejs-toggle"><input type="checkbox" id="limiter-bypass" checked><span class="ejs-toggle-slider"></span></label>
+              <span>Limiter</span>
+            </div>
+            <div class="ejs-knob-group"><label>Thresh</label><input type="range" id="limiter-threshold" min="-30" max="0" step="0.1" value="-3" data-default="-3"><span id="limiter-threshold-val">-3.0dB</span></div>
+            <div class="ejs-knob-group"><label>Knee</label><input type="range" id="limiter-knee" min="0" max="40" step="0.1" value="10" data-default="10"><span id="limiter-knee-val">10.0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output: Visualizers -->
+      <div class="ejs-panel" id="viz-section">
+        <div class="ejs-panel-head"><span>OUTPUT</span></div>
+        <div class="ejs-viz-row">
+          <div class="ejs-viz-unit">
+            <canvas id="scope-canvas" width="400" height="80"></canvas>
+          </div>
+          <div class="ejs-viz-unit">
+            <canvas id="spectrum-canvas" width="400" height="80"></canvas>
+          </div>
+          <div class="ejs-viz-meter">
+            <canvas id="meter-canvas" width="40" height="80"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard -->
+    <div class="ejs-keyboard-wrap">
+      <span class="ejs-kb-hint">Keys: A-L / W-P | Z/X oct</span>
+      <div id="keyboard"></div>
+    </div>
+
+    <!-- Patch code modal -->
+    <div class="ejs-modal-backdrop" id="patch-modal-backdrop" hidden>
+      <div class="ejs-modal" role="dialog" aria-modal="true" aria-labelledby="patch-modal-title">
+        <div class="ejs-modal-head">
+          <span id="patch-modal-title">PATCH CODE</span>
+          <button class="ejs-btn" id="patch-close-btn" type="button">Close</button>
+        </div>
+        <textarea id="patch-code" spellcheck="false" rows="4" placeholder="Paste a patch code here..."></textarea>
+        <div class="ejs-modal-actions">
+          <span class="ejs-modal-status" id="patch-status"></span>
+          <div class="ejs-modal-actions-right">
+            <button class="ejs-btn" id="patch-copy-btn" type="button">Copy</button>
+            <button class="ejs-btn ejs-btn-primary" id="patch-load-btn" type="button">Load</button>
+          </div>
+        </div>
+        <div class="ejs-modal-hint">Tip: this is a shareable “sound string” for saving/recalling patches.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
