@@ -7,21 +7,24 @@
     <style>
         @font-face {
             font-family: 'Druk Wide';
-            src: local('Druk Wide'), local('DrukWide'), local('Druk Wide Bold'), local('DrukWide-Bold');
+            src: url('assets/fonts/DrukWideBold.ttf') format('truetype');
             font-weight: 700;
             font-style: normal;
+            font-display: swap;
         }
         @font-face {
             font-family: 'Druk Wide';
-            src: local('Druk Wide Medium'), local('DrukWide-Medium'), local('Druk Wide');
+            src: url('assets/fonts/DrukWideBold.ttf') format('truetype');
             font-weight: 500;
             font-style: normal;
+            font-display: swap;
         }
         @font-face {
             font-family: 'Druk Wide';
-            src: local('Druk Wide Regular'), local('DrukWide-Regular'), local('Druk Wide');
+            src: url('assets/fonts/DrukWideBold.ttf') format('truetype');
             font-weight: 400;
             font-style: normal;
+            font-display: swap;
         }
         body { 
             margin: 0; padding: 0; color: #fff; font-family: 'Druk Wide', 'DrukWide', 'Arial Black', sans-serif; 
@@ -120,12 +123,55 @@
         .ab-playhead-handle { position: absolute; inset: 0 auto 0 auto; left: calc(var(--playhead-pct) * 1%); width: 18px; transform: translateX(-50%); cursor: grab; }
         .ab-playhead-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255,255,255,0.85); transform: translateX(-50%); }
         .ab-playhead-handle::after { content: ''; position: absolute; bottom: 10px; left: 50%; width: 10px; height: 10px; border-radius: 999px; background: rgba(255,255,255,0.9); transform: translateX(-50%); box-shadow: 0 0 0 2px rgba(0,0,0,0.6); }
-        .ab-label { position: absolute; bottom: 8px; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: #bdbdbd; }
-        .ab-label.ab-left { left: 12px; color: rgba(255, 180, 180, 0.9); }
-        .ab-label.ab-right { right: 12px; text-align: right; color: rgba(170, 255, 205, 0.9); }
-        .project-media video,
-        .project-media iframe,
-        .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
+	        .ab-label { position: absolute; bottom: 8px; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: #bdbdbd; }
+	        .ab-label.ab-left { left: 12px; color: rgba(255, 180, 180, 0.9); }
+	        .ab-label.ab-right { right: 12px; text-align: right; color: rgba(170, 255, 205, 0.9); }
+	        .synth-frame { display: block; padding: 0; min-height: 0; border: 1px solid #1f1f1f; background:
+	            radial-gradient(900px 400px at 20% 0%, rgba(120, 255, 195, 0.18), rgba(0,0,0,0) 60%),
+	            radial-gradient(800px 380px at 85% 100%, rgba(130, 120, 255, 0.18), rgba(0,0,0,0) 55%),
+	            linear-gradient(180deg, rgba(20,20,20,0.92), rgba(10,10,10,0.92) 65%, rgba(5,5,5,0.92));
+	            overflow: hidden;
+	            text-transform: none;
+	            letter-spacing: normal;
+	            color: #f2f2f2;
+	        }
+	        .synth { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+	        .synth-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 18px 0; }
+	        .synth-title { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.95em; opacity: 0.95; }
+	        .synth-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+	        .synth-btn { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.14); color: #fff; font-family: inherit;
+	            text-transform: uppercase; letter-spacing: 0.1em; padding: 9px 14px; cursor: pointer; }
+	        .synth-btn:hover { border-color: rgba(255,255,255,0.28); }
+	        .synth-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+	        .synth-btn.primary { border-color: rgba(72, 255, 179, 0.75); box-shadow: 0 0 0 1px rgba(72, 255, 179, 0.18), 0 10px 30px rgba(0,0,0,0.35); }
+	        .synth-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; padding: 0 18px; }
+	        .synth-control { display: grid; gap: 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12);
+	            background: rgba(0,0,0,0.22); }
+	        .synth-label { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.78); }
+	        .synth-control select,
+	        .synth-control input[type="range"] { width: 100%; }
+	        .synth-inline { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+	        .synth-check { display: inline-flex; gap: 8px; align-items: center; font-size: 0.8em; letter-spacing: 0.08em; text-transform: uppercase; }
+	        .synth-check input { accent-color: #48ffb3; }
+	        .synth-keys { margin: 0 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.22);
+	            height: 140px; display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; padding: 10px; position: relative; user-select: none; touch-action: none; }
+	        .synth-key { border: 0; border-radius: 12px; font-family: inherit; cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase; }
+	        .synth-key.white { background: rgba(245, 245, 245, 0.92); color: #101010; grid-row: 1 / -1; }
+	        .synth-key.black { background: rgba(0, 0, 0, 0.78); color: rgba(255,255,255,0.92); grid-row: 1; height: 66%; width: 70%;
+	            justify-self: center; z-index: 2; transform: translateX(55%); box-shadow: 0 10px 18px rgba(0,0,0,0.45); }
+	        .synth-key.is-down { outline: 2px solid rgba(72, 255, 179, 0.85); outline-offset: 2px; }
+	        .synth-vis { padding: 0 18px 2px; display: grid; gap: 10px; }
+	        .synth-vis-tabs { display: flex; flex-wrap: wrap; gap: 10px; }
+	        .synth-tab { background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.88);
+	            font-family: inherit; text-transform: uppercase; letter-spacing: 0.12em; padding: 8px 12px; cursor: pointer; }
+	        .synth-tab.is-active { border-color: rgba(130, 120, 255, 0.8); box-shadow: 0 0 0 1px rgba(130, 120, 255, 0.18); }
+	        .synth-canvas { width: 100%; height: 150px; display: none; border-radius: 16px; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.22); }
+	        .synth-canvas.is-active { display: block; }
+	        .synth-hint { padding: 0 18px 18px; font-size: 0.78em; letter-spacing: 0.04em; line-height: 1.55; color: rgba(255,255,255,0.72); }
+	        .synth-hint strong { color: rgba(255,255,255,0.92); font-weight: 700; }
+	        .project-media video,
+	        .project-media iframe,
+	        .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
         .video-embed { position: relative; width: 100%; padding-top: 56.25%; margin-top: 24px; }
         .video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
         .soundcloud-list { max-width: 1000px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 28px; }
@@ -189,11 +235,117 @@
         <div class="project-list">
             <div class="project-row fade-in">
                 <div class="project-media">
-                    <div class="media-frame">Embed coming soon</div>
+                    <div class="media-frame synth-frame">
+                        <div class="synth" id="interactiveSynth" aria-label="Interactive Synthesizer">
+                            <div class="synth-top">
+                                <div class="synth-title">Interactive Synth</div>
+                                <div class="synth-actions">
+                                    <button id="synthStart" class="synth-btn primary" type="button">Start</button>
+                                    <button id="synthStop" class="synth-btn" type="button" disabled>Stop</button>
+                                    <button id="synthRandom" class="synth-btn" type="button" disabled>Random</button>
+                                </div>
+                            </div>
+
+                            <div class="synth-grid">
+                                <div class="synth-control">
+                                    <div class="synth-label">Wave</div>
+                                    <select id="synthWave">
+                                        <option value="sawtooth" selected>Saw</option>
+                                        <option value="square">Square</option>
+                                        <option value="triangle">Triangle</option>
+                                        <option value="sine">Sine</option>
+                                    </select>
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Cutoff</div>
+                                    <input id="synthCutoff" type="range" min="80" max="12000" value="1800" step="1">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Res</div>
+                                    <input id="synthRes" type="range" min="0.1" max="18" value="2.2" step="0.1">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Attack</div>
+                                    <input id="synthAttack" type="range" min="0.001" max="1.2" value="0.01" step="0.001">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Release</div>
+                                    <input id="synthRelease" type="range" min="0.01" max="3" value="0.35" step="0.01">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Drive</div>
+                                    <input id="synthDrive" type="range" min="0" max="1" value="0.12" step="0.01">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Delay</div>
+                                    <input id="synthDelayMix" type="range" min="0" max="1" value="0.18" step="0.01">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">LFO</div>
+                                    <input id="synthLfoRate" type="range" min="0" max="12" value="2.5" step="0.1">
+                                </div>
+                                <div class="synth-control">
+                                    <div class="synth-label">Arp</div>
+                                    <div class="synth-inline">
+                                        <label class="synth-check">
+                                            <input id="synthArp" type="checkbox">
+                                            <span>On</span>
+                                        </label>
+                                        <input id="synthArpRate" type="range" min="1" max="16" value="8" step="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="synth-keys" id="synthKeys" aria-label="Keyboard">
+                                <button class="synth-key white" type="button" data-note="60">C</button>
+                                <button class="synth-key white" type="button" data-note="62">D</button>
+                                <button class="synth-key white" type="button" data-note="64">E</button>
+                                <button class="synth-key white" type="button" data-note="65">F</button>
+                                <button class="synth-key white" type="button" data-note="67">G</button>
+                                <button class="synth-key white" type="button" data-note="69">A</button>
+                                <button class="synth-key white" type="button" data-note="71">B</button>
+                                <button class="synth-key white" type="button" data-note="72">C</button>
+                                <button class="synth-key white" type="button" data-note="74">D</button>
+                                <button class="synth-key white" type="button" data-note="76">E</button>
+                                <button class="synth-key white" type="button" data-note="77">F</button>
+                                <button class="synth-key white" type="button" data-note="79">G</button>
+                                <button class="synth-key white" type="button" data-note="81">A</button>
+                                <button class="synth-key white" type="button" data-note="83">B</button>
+
+                                <button class="synth-key black" style="grid-column: 1" type="button" data-note="61">C#</button>
+                                <button class="synth-key black" style="grid-column: 2" type="button" data-note="63">D#</button>
+                                <button class="synth-key black" style="grid-column: 4" type="button" data-note="66">F#</button>
+                                <button class="synth-key black" style="grid-column: 5" type="button" data-note="68">G#</button>
+                                <button class="synth-key black" style="grid-column: 6" type="button" data-note="70">A#</button>
+                                <button class="synth-key black" style="grid-column: 8" type="button" data-note="73">C#</button>
+                                <button class="synth-key black" style="grid-column: 9" type="button" data-note="75">D#</button>
+                                <button class="synth-key black" style="grid-column: 11" type="button" data-note="78">F#</button>
+                                <button class="synth-key black" style="grid-column: 12" type="button" data-note="80">G#</button>
+                                <button class="synth-key black" style="grid-column: 13" type="button" data-note="82">A#</button>
+                            </div>
+
+                            <div class="synth-vis">
+                                <div class="synth-vis-tabs" role="tablist" aria-label="Visualisers">
+                                    <button class="synth-tab is-active" type="button" data-vis="scope">Scope</button>
+                                    <button class="synth-tab" type="button" data-vis="spectrum">Spectrum</button>
+                                    <button class="synth-tab" type="button" data-vis="spectrogram">Spectrogram</button>
+                                    <button class="synth-tab" type="button" data-vis="vectorscope">Vectorscope</button>
+                                </div>
+                                <canvas id="synthScope" class="synth-canvas is-active" data-vis-canvas="scope" aria-hidden="true"></canvas>
+                                <canvas id="synthSpectrum" class="synth-canvas" data-vis-canvas="spectrum" aria-hidden="true"></canvas>
+                                <canvas id="synthSpectrogram" class="synth-canvas" data-vis-canvas="spectrogram" aria-hidden="true"></canvas>
+                                <canvas id="synthVectorscope" class="synth-canvas" data-vis-canvas="vectorscope" aria-hidden="true"></canvas>
+                            </div>
+
+                            <div class="synth-hint">
+                                Click <strong>Start</strong>, then play with your keyboard (A–K row) or click the keys. Z/X shifts octave.
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="project-copy">
                     <h3>Interactive Synthesizer (Max/MSP)</h3>
-                    <p>A browser playable custom synthesizer built in Max/MSP and exported via RNBO. Features real time parameter control for experimentation with timbre, modulation, and effects.</p>
+                    <p>Originally built in Max/MSP — for this site I ported the synth engine into JavaScript (Web Audio API) and expanded it with polyphony, an arpeggiator, stereo delay/drive, and real time visualisers (scope/spectrum/spectrogram/vectorscope).</p>
                 </div>
             </div>
             <div class="project-row fade-in reverse">
