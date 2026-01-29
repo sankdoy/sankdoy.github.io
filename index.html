@@ -126,11 +126,13 @@
 	        .ab-label { position: absolute; bottom: 8px; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: #bdbdbd; }
 	        .ab-label.ab-left { left: 12px; color: rgba(255, 180, 180, 0.9); }
 	        .ab-label.ab-right { right: 12px; text-align: right; color: rgba(170, 255, 205, 0.9); }
-		        .synth-embed-frame { padding: 0; min-height: clamp(640px, 84vh, 980px); text-transform: none; }
-		        .synth-embed { width: 100%; height: clamp(640px, 84vh, 980px); border: 0; display: block; background: #000; }
-		        .project-media video,
-		        .project-media iframe,
-		        .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
+	        .synth-row { flex-direction: column; gap: 22px; }
+	        .synth-row .project-copy { text-align: center; }
+	        .synth-row .project-copy p { max-width: 920px; margin: 0 auto; }
+	        .synth-embed { width: 100%; height: min(92vh, 1040px); border: 1px solid #1f1f1f; display: block; background: #000; }
+	        .project-media video,
+	        .project-media iframe,
+	        .project-media img { width: 100%; max-width: 100%; height: auto; display: block; }
         .video-embed { position: relative; width: 100%; padding-top: 56.25%; margin-top: 24px; }
         .video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
         .soundcloud-list { max-width: 1000px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 28px; }
@@ -145,16 +147,17 @@
         .body-copy p:last-child { margin-bottom: 0; }
         /* Fade-in on scroll */
         .fade-in { opacity: 0; transform: translateY(50px); }
-        @media (max-width: 900px) {
-            h1 { font-size: 3.4em; }
-            h2 { font-size: 2.6em; }
-            .project-row,
-            .project-row.reverse { flex-direction: column; }
-            .project-copy { text-align: center; }
-            .project-copy h3 { text-align: center; }
-            .media-frame { min-height: 200px; }
-        }
-    </style>
+	        @media (max-width: 900px) {
+	            h1 { font-size: 3.4em; }
+	            h2 { font-size: 2.6em; }
+	            .project-row,
+	            .project-row.reverse { flex-direction: column-reverse; }
+	            .project-copy { text-align: center; }
+	            .project-copy h3 { text-align: center; }
+	            .media-frame { min-height: 200px; }
+	            .synth-embed { height: min(76vh, 820px); }
+	        }
+	    </style>
 </head>
 <body>
     <div class="bg-wash" aria-hidden="true"></div>
@@ -191,31 +194,20 @@
 
     <section id="projects">
         <h2>Selected Projects</h2>
-        <div class="project-list">
-	            <div class="project-row fade-in">
-	                <div class="project-media">
-	                    <div class="media-frame synth-embed-frame">
-	                        <iframe class="synth-embed" src="synth/index.html" title="EJ Synth" loading="lazy"></iframe>
-	                    </div>
-	                </div>
+	        <div class="project-list">
+	            <div class="project-row synth-row fade-in">
 	                <div class="project-copy">
 	                    <h3>Interactive Synthesizer (Max/MSP)</h3>
 	                    <p>My EJ Synth: the original web build of my synth, embedded directly in this page.</p>
 	                </div>
+	                <div class="project-media">
+	                    <iframe class="synth-embed" src="synth/index.html" title="EJ Synth" loading="lazy"></iframe>
+	                </div>
 	            </div>
-            <div class="project-row fade-in reverse">
-                <div class="project-media">
-                    <div class="media-frame">Embed coming soon</div>
-                </div>
-                <div class="project-copy">
-                    <h3>Procedural Music Generator (Max/MSP)</h3>
-                    <p>A generative music system in Max/MSP that creates random, evolving compositions based on user defined rules and probability, demonstrating algorithmic audio techniques.</p>
-                </div>
-            </div>
-            <div class="project-row fade-in">
-                <div class="project-media">
-                    <div class="media-frame fmod-panel">
-                        <div class="fmod-controls">
+	            <div class="project-row fade-in">
+	                <div class="project-media">
+	                    <div class="media-frame fmod-panel">
+	                        <div class="fmod-controls">
                             <button id="startAudio" class="fmod-btn">Start audio</button>
                             <button id="toggleAudio" class="fmod-btn" disabled>Pause</button>
                             <button id="resetAudio" class="fmod-btn" disabled>Reset</button>
