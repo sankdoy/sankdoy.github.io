@@ -28,6 +28,99 @@
       </div>
     </div>
 
+    <!-- Cheat sheet -->
+    <details class="ejs-cheatsheet">
+      <summary>CHEAT SHEET (what everything does)</summary>
+      <div class="ejs-cheatsheet-body">
+        <div class="ejs-cheatsheet-grid">
+          <div class="ejs-cheat-block">
+            <h3>Header</h3>
+            <ul>
+              <li><strong>OFF/ON</strong>: starts/stops audio output (Web Audio needs a user click to start).</li>
+              <li><strong>BPM</strong>: tempo used by time-synced LFO rates (1/4, 1/8, etc.).</li>
+              <li><strong>GAIN</strong>: main output volume.</li>
+              <li><strong>TRANSP</strong>: transpose all notes in semitones (+12 = 1 octave up, -12 = 1 octave down).</li>
+              <li><strong>Preset</strong>: loads a saved preset from the dropdown.</li>
+              <li><strong>RND</strong>: randomises lots of parameters to help find new sounds.</li>
+              <li><strong>CODE</strong>: opens “patch code” — copy/paste to save/share/load a preset string.</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Oscillators</h3>
+            <ul>
+              <li><strong>Wave</strong>: waveform shape (Sin/Sqr/Tri/Saw).</li>
+              <li><strong>Oct</strong>: pitch multiplier for that oscillator (1.00 = normal, 2.00 = +1 octave, 0.50 = -1 octave, 3.00 = octave+fifth).</li>
+              <li><strong>Vol</strong>: how loud that oscillator is in the mix.</li>
+              <li><strong>NOISE</strong>: adds white noise into the voice (useful for bite/air/percussion).</li>
+              <li><strong>Noise Level</strong>: noise loudness (only active when NOISE is on).</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Envelope (ADSR)</h3>
+            <ul>
+              <li><strong>A (Attack)</strong>: time to rise from silence to full volume after a note starts.</li>
+              <li><strong>D (Decay)</strong>: time to fall from full volume down to the sustain level.</li>
+              <li><strong>S (Sustain)</strong>: held volume level while the key is held (0–1).</li>
+              <li><strong>R (Release)</strong>: fade-out time after you release the key.</li>
+              <li><strong>Graph</strong>: visual shape of the envelope you’re setting.</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Parametric EQ</h3>
+            <ul>
+              <li><strong>HP</strong> (High‑pass): removes low frequencies below the cutoff.</li>
+              <li><strong>PK</strong> (Peak): boosts/cuts around a chosen frequency.</li>
+              <li><strong>LP</strong> (Low‑pass): removes high frequencies above the cutoff.</li>
+              <li><strong>Freq</strong>: the cutoff/center frequency.</li>
+              <li><strong>Gain</strong> (PK only): boost/cut amount in dB.</li>
+              <li><strong>Q</strong>: resonance/width (higher Q = narrower/more resonant).</li>
+              <li><strong>HP/PK/LP buttons</strong>: toggle each EQ band on/off.</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Modulation (LFOs)</h3>
+            <ul>
+              <li><strong>Toggle</strong>: turns that LFO on/off.</li>
+              <li><strong>Wave</strong>: LFO shape (Sin/Sqr/Tri/Saw/Custom).</li>
+              <li><strong>Mode</strong>: Free (always running), Trigger (restarts on keypress), Envelope (one-shot per note).</li>
+              <li><strong>Sync</strong>: when on, rate is set in musical divisions (BPM-locked). When off, rate is free Hz.</li>
+              <li><strong>Depth</strong>: master modulation depth for this LFO.</li>
+              <li><strong>Shape</strong>: opens a canvas editor. Right-click to add/remove points, drag to move.</li>
+              <li><strong>Routes</strong>: connect the LFO to any parameter. Each route has a target and amount.</li>
+              <li><strong>+ LFO</strong>: add more LFOs (up to 4). <strong>+ Route</strong>: add a new routing destination.</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Effects</h3>
+            <ul>
+              <li><strong>Toggle</strong>: enables/bypasses that effect block.</li>
+              <li><strong>Distortion</strong>: adds harmonics/grit. Drive = amount, Tone = brightness, Mix = dry/wet.</li>
+              <li><strong>Comb Filter</strong>: metallic/chorusy resonances. Delay (ms) sets the “tuning”, Feedback adds ringing, Mix blends.</li>
+              <li><strong>Delay</strong>: echo. Time (s), Feedback repeats, Mix blends.</li>
+              <li><strong>Reverb</strong>: space. Size (s), Damp (Hz) darkens/brightens, Mix blends.</li>
+              <li><strong>Limiter</strong>: safety loudness control. Thresh = how hard it clamps, Knee = softness.</li>
+            </ul>
+          </div>
+
+          <div class="ejs-cheat-block">
+            <h3>Output + Keyboard</h3>
+            <ul>
+              <li><strong>Scope</strong>: waveform over time.</li>
+              <li><strong>Spectrum</strong>: frequency energy (low → high).</li>
+              <li><strong>Meter</strong>: output level.</li>
+              <li><strong>Keys</strong>: A–L / W–P for notes. <strong>Z/X</strong> changes octave.</li>
+              <li><strong>Tip</strong>: double‑click any slider to reset it to its default value.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </details>
+
     <!-- Main layout -->
     <div class="ejs-main-grid">
 
@@ -195,37 +288,14 @@
         </div>
       </div>
 
-      <!-- LFO -->
-      <div class="ejs-panel" id="lfo-section">
-        <div class="ejs-panel-head"><span>LFO MODULATION</span></div>
-        <div class="ejs-lfo-grid">
-          <div class="ejs-lfo" data-lfo="0">
-            <div class="ejs-lfo-head">
-              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
-              <span>Gain</span>
-            </div>
-            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
-            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
-            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="1" step="0.01" value="0.5" data-default="0.5"><span class="lfo-strength-val">0.50</span></div>
-          </div>
-          <div class="ejs-lfo" data-lfo="1">
-            <div class="ejs-lfo-head">
-              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
-              <span>Pitch</span>
-            </div>
-            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
-            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
-            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="100" step="1" value="0" data-default="0"><span class="lfo-strength-val">0</span></div>
-          </div>
-          <div class="ejs-lfo" data-lfo="2">
-            <div class="ejs-lfo-head">
-              <label class="ejs-toggle"><input type="checkbox" class="lfo-toggle"><span class="ejs-toggle-slider"></span></label>
-              <span>Filter</span>
-            </div>
-            <select class="lfo-wave"><option value="sine">Sin</option><option value="square">Sqr</option><option value="triangle">Tri</option><option value="sawtooth">Saw</option></select>
-            <div class="ejs-knob-group"><label>Rate</label><select class="lfo-rate"><option value="4">1/1</option><option value="2">1/2</option><option value="1" selected>1/4</option><option value="0.5">1/8</option><option value="0.25">1/16</option><option value="0.125">1/32</option><option value="0.0625">1/64</option><option value="0.03125">1/128</option><option value="0.015625">1/256</option></select></div>
-            <div class="ejs-knob-group"><label>Amt</label><input type="range" class="lfo-strength" min="0" max="5000" step="10" value="0" data-default="0"><span class="lfo-strength-val">0</span></div>
-          </div>
+      <!-- MODULATION -->
+      <div class="ejs-panel" id="mod-section">
+        <div class="ejs-panel-head">
+          <span>MODULATION</span>
+          <button class="ejs-btn" id="mod-add-lfo">+ LFO</button>
+        </div>
+        <div id="mod-lfo-list">
+          <!-- LFO modules are built dynamically by app.js -->
         </div>
       </div>
 
@@ -294,6 +364,11 @@
             <canvas id="meter-canvas" width="40" height="80"></canvas>
           </div>
         </div>
+        <div class="ejs-viz-row ejs-viz-row-full">
+          <div class="ejs-viz-unit">
+            <canvas id="spectrogram-canvas" width="800" height="120"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -323,6 +398,7 @@
     </div>
   </div>
 
+  <script src="modulation.js"></script>
   <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>

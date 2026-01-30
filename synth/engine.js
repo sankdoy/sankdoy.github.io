@@ -35,6 +35,10 @@ class SynthEngine {
     ];
     this.lfos = [];
 
+    // New modulation system
+    this.modRouter = null;
+    this.useNewModulation = false;
+
     this.combConfig = { delay: 5, feedback: 0.5, mix: 0, enabled: false };
     this.limiterConfig = { threshold: -3, knee: 10, enabled: true };
     this.distortionConfig = { drive: 0, tone: 8000, mix: 0, enabled: false };
@@ -267,7 +271,13 @@ class SynthEngine {
     this.mainGain.connect(this.safetyClipper);
     this.safetyClipper.connect(this.ctx.destination);
 
-    this._setupLFOs();
+    // Initialize modulation router if available
+    if (typeof ModulationRouter !== 'undefined') {
+      this.modRouter = new ModulationRouter(this);
+      this.useNewModulation = true;
+    } else {
+      this._setupLFOs();
+    }
     this.running = true;
   }
 
@@ -477,7 +487,8 @@ class SynthEngine {
       osc.type = vc.waveform;
       osc.frequency.value = freq * vc.overtone;
 
-      if (this.lfoConfigs[1].enabled && this.lfos[1]) {
+      // Legacy LFO pitch modulation
+      if (!this.useNewModulation && this.lfoConfigs[1].enabled && this.lfos[1]) {
         this.lfos[1].gain.connect(osc.frequency);
       }
 
@@ -492,6 +503,13 @@ class SynthEngine {
 
     envGain.connect(this.voiceBus);
     this.activeVoices.set(note, voice);
+
+    // New modulation: connect pitch/gain LFOs to this voice and trigger retrigger modes
+    if (this.modRouter) {
+      this.modRouter.connectPitchToVoice(voice);
+      this.modRouter.connectGainToVoice(voice);
+      this.modRouter.onNoteOn(note);
+    }
   }
 
   noteOff(note) {
@@ -527,9 +545,14 @@ class SynthEngine {
         try { this.noiseBus.disconnect(voice.noiseTap); } catch (e) {}
         try { voice.noiseTap.disconnect(); } catch (e) {}
       }
+      // Clean up modulation gain nodes for this voice
+      if (voice._modGains) {
+        voice._modGains.forEach(g => { try { g.disconnect(); } catch (e) {} });
+      }
       try { voice.envGain.disconnect(); } catch (e) {}
     }, (rel + 0.05) * 1000);
 
+    if (this.modRouter) this.modRouter.onNoteOff(note);
     this.activeVoices.delete(note);
   }
 
@@ -539,7 +562,10 @@ class SynthEngine {
 
   setBPM(v) {
     this.bpm = v;
-    if (this.running) this.lfos.forEach((l, i) => { l.osc.frequency.value = this._lfoRateHz(this.lfoConfigs[i].rateBeats); });
+    if (this.running && !this.useNewModulation) {
+      this.lfos.forEach((l, i) => { l.osc.frequency.value = this._lfoRateHz(this.lfoConfigs[i].rateBeats); });
+    }
+    if (this.modRouter) this.modRouter.updateAllRates();
   }
 
   setTranspose(v) { this.transpose = v; }
@@ -707,14 +733,18 @@ class SynthEngine {
     }
     if (this.running) this._routeEQ();
 
-    for (let i = 0; i < 3; i++) {
-      Object.assign(this.lfoConfigs[i], p.lfos[i]);
-      if (this.running && this.lfos[i]) {
-        this.lfos[i].osc.type = this.lfoConfigs[i].waveform;
-        this.lfos[i].osc.frequency.value = this._lfoRateHz(this.lfoConfigs[i].rateBeats);
-        this.lfos[i].gain.gain.value = this.lfoConfigs[i].enabled ? this.lfoConfigs[i].strength : 0;
+    // Legacy LFO loading (for old presets or when new system not active)
+    if (!this.useNewModulation && p.lfos) {
+      for (let i = 0; i < 3; i++) {
+        Object.assign(this.lfoConfigs[i], p.lfos[i]);
+        if (this.running && this.lfos[i]) {
+          this.lfos[i].osc.type = this.lfoConfigs[i].waveform;
+          this.lfos[i].osc.frequency.value = this._lfoRateHz(this.lfoConfigs[i].rateBeats);
+          this.lfos[i].gain.gain.value = this.lfoConfigs[i].enabled ? this.lfoConfigs[i].strength : 0;
+        }
       }
     }
+    // New modulation is loaded via app.js calling modRouter.init()
 
     Object.assign(this.combConfig, p.comb);
     if (this.running) {

@@ -17,14 +17,40 @@ function _b64UrlDecode(b64url) {
 }
 
 function encodePatch(patchObj) {
-  return PATCH_PREFIX + _b64UrlEncode(JSON.stringify(patchObj));
+  const prefix = patchObj.modulation ? 'EJS2.' : PATCH_PREFIX;
+  return prefix + _b64UrlEncode(JSON.stringify(patchObj));
 }
 
 function decodePatch(code) {
   const trimmed = (code || '').trim();
-  if (!trimmed.startsWith(PATCH_PREFIX)) throw new Error('Not an EJ patch code.');
-  const json = _b64UrlDecode(trimmed.slice(PATCH_PREFIX.length));
-  return JSON.parse(json);
+  if (trimmed.startsWith('EJS2.')) {
+    return JSON.parse(_b64UrlDecode(trimmed.slice(5)));
+  }
+  if (trimmed.startsWith(PATCH_PREFIX)) {
+    return JSON.parse(_b64UrlDecode(trimmed.slice(PATCH_PREFIX.length)));
+  }
+  throw new Error('Not an EJ patch code.');
+}
+
+// Convert legacy 3-LFO format (gain/pitch/filter) to new modulation format
+function legacyLfosToModulation(lfos) {
+  if (!Array.isArray(lfos) || lfos.length < 3) return [];
+  const targetMap = [
+    [{ targetId: 'main-gain', amount: lfos[0].strength }],
+    [{ targetId: 'all-pitch', amount: lfos[1].strength / 100 }],
+    [{ targetId: 'eq-lp-freq', amount: lfos[2].strength / 5000 }, { targetId: 'eq-hp-freq', amount: lfos[2].strength / 5000 }],
+  ];
+  return lfos.map((l, i) => ({
+    enabled: l.enabled,
+    waveform: l.waveform,
+    mode: 'free',
+    tempoSync: true,
+    rateBeats: l.rateBeats,
+    rateFree: 1,
+    depth: 1,
+    routes: targetMap[i],
+    customShape: null,
+  }));
 }
 
 function normalizePatch(p) {
@@ -55,6 +81,7 @@ function normalizePatch(p) {
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
     ],
+    modulation: patch.modulation || null,
     distortion: patch.distortion || { drive: 0, tone: 8000, mix: 0, enabled: false },
     reverb: patch.reverb || { size: 2.5, damp: 8000, mix: 0.2, enabled: false },
     comb: patch.comb || { delay: 5, feedback: 0.5, mix: 0, enabled: false },
@@ -74,6 +101,11 @@ function snapshotCurrentPatch() {
     envelope: { ...synth.envelope },
     eq: JSON.parse(JSON.stringify(synth.eqConfigs)),
     lfos: synth.lfoConfigs.map(l => ({ ...l })),
+    modulation: modConfigs.map(m => ({
+      ...m,
+      routes: m.routes.map(r => ({ ...r })),
+      customShape: m.customShape ? m.customShape.map(p => ({ ...p })) : null,
+    })),
     distortion: { ...synth.distortionConfig },
     reverb: { ...synth.reverbConfig },
     comb: { ...synth.combConfig },
@@ -458,6 +490,22 @@ function randomPreset() {
       { enabled: coin(0.4), waveform: pick(waves), rateBeats: pick([4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]), strength: rng(1, 80) },
       { enabled: coin(0.5), waveform: pick(waves), rateBeats: pick([4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]), strength: rng(50, 4000) },
     ],
+    modulation: [
+      {
+        enabled: coin(0.5), waveform: pick(waves), mode: pick(['free', 'free', 'trigger']),
+        tempoSync: coin(0.7), rateBeats: pick([4, 2, 1, 0.5, 0.25, 0.125]), rateFree: rng(0.1, 10),
+        depth: rng(0.1, 1),
+        routes: [{ targetId: pick(Object.keys(MOD_TARGETS)), amount: rng(-1, 1) }],
+        customShape: null,
+      },
+      {
+        enabled: coin(0.4), waveform: pick(waves), mode: pick(['free', 'trigger', 'envelope']),
+        tempoSync: coin(0.6), rateBeats: pick([2, 1, 0.5, 0.25]), rateFree: rng(0.5, 20),
+        depth: rng(0.2, 0.8),
+        routes: [{ targetId: pick(Object.keys(MOD_TARGETS)), amount: rng(-0.8, 0.8) }],
+        customShape: null,
+      },
+    ],
     distortion: {
       enabled: coin(0.4),
       drive: rng(0, 1),
@@ -655,15 +703,15 @@ function refreshUI(p) {
     btn.classList.toggle('active', enabled);
   });
 
-  // LFOs
-  document.querySelectorAll('.ejs-lfo').forEach((el, i) => {
-    const cfg = p.lfos[i];
-    el.querySelector('.lfo-toggle').checked = cfg.enabled;
-    el.querySelector('.lfo-wave').value = cfg.waveform;
-    el.querySelector('.lfo-rate').value = cfg.rateBeats;
-    el.querySelector('.lfo-strength').value = cfg.strength;
-    el.querySelector('.lfo-strength-val').textContent = i === 0 ? cfg.strength.toFixed(2) : Math.round(cfg.strength).toString();
-  });
+  // Modulation
+  if (p.modulation) {
+    modConfigs = p.modulation.map(m => ({ ...m, routes: m.routes.map(r => ({ ...r })), customShape: m.customShape ? m.customShape.map(pt => ({ ...pt })) : null }));
+  } else if (p.lfos) {
+    // Convert legacy LFO format to new modulation format
+    modConfigs = legacyLfosToModulation(p.lfos);
+  }
+  buildModUI();
+  syncModToEngine();
 
   // Effects
   const noise = p.noise || { enabled: false, level: 0 };
@@ -975,30 +1023,255 @@ function xToFreq(x, w) {
   return 20 * Math.pow(20000 / 20, x / w);
 }
 
-// ===================== LFOs =====================
-document.querySelectorAll('.ejs-lfo').forEach(el => {
-  const idx = parseInt(el.dataset.lfo);
+// ===================== MODULATION SYSTEM =====================
+const modLfoList = document.getElementById('mod-lfo-list');
+const modAddBtn = document.getElementById('mod-add-lfo');
+const MAX_LFOS = 4;
 
-  el.querySelector('.lfo-toggle').addEventListener('change', (e) => {
-    synth.updateLFO(idx, 'enabled', e.target.checked);
+// Default modulation configs
+let modConfigs = [
+  { enabled: false, waveform: 'sine', mode: 'free', tempoSync: true, rateBeats: 1, rateFree: 1, depth: 0.5, routes: [{ targetId: 'main-gain', amount: 0.5 }], customShape: null },
+  { enabled: false, waveform: 'sine', mode: 'free', tempoSync: true, rateBeats: 1, rateFree: 1, depth: 0.5, routes: [{ targetId: 'all-pitch', amount: 0.5 }], customShape: null },
+];
+
+const shapeEditors = [];
+
+function buildModUI() {
+  modLfoList.innerHTML = '';
+  shapeEditors.length = 0;
+
+  modConfigs.forEach((cfg, i) => {
+    const el = document.createElement('div');
+    el.className = 'ejs-mod-lfo';
+    el.dataset.lfo = i;
+    el.innerHTML = `
+      <div class="ejs-mod-lfo-header">
+        <label class="ejs-toggle"><input type="checkbox" class="mod-lfo-toggle" ${cfg.enabled ? 'checked' : ''}><span class="ejs-toggle-slider"></span></label>
+        <span class="ejs-mod-lfo-label">LFO ${i + 1}</span>
+        <select class="mod-lfo-wave">
+          <option value="sine" ${cfg.waveform === 'sine' ? 'selected' : ''}>Sin</option>
+          <option value="square" ${cfg.waveform === 'square' ? 'selected' : ''}>Sqr</option>
+          <option value="triangle" ${cfg.waveform === 'triangle' ? 'selected' : ''}>Tri</option>
+          <option value="sawtooth" ${cfg.waveform === 'sawtooth' ? 'selected' : ''}>Saw</option>
+          <option value="custom" ${cfg.waveform === 'custom' ? 'selected' : ''}>Custom</option>
+        </select>
+        <select class="mod-lfo-mode">
+          <option value="free" ${cfg.mode === 'free' ? 'selected' : ''}>Free</option>
+          <option value="trigger" ${cfg.mode === 'trigger' ? 'selected' : ''}>Trigger</option>
+          <option value="envelope" ${cfg.mode === 'envelope' ? 'selected' : ''}>Envelope</option>
+        </select>
+        <label class="ejs-toggle mod-sync-toggle"><input type="checkbox" class="mod-lfo-sync" ${cfg.tempoSync ? 'checked' : ''}><span class="ejs-toggle-slider"></span></label>
+        <span class="ejs-mod-sync-label">Sync</span>
+        <select class="mod-lfo-rate-sync" ${!cfg.tempoSync ? 'hidden' : ''}>
+          <option value="4" ${cfg.rateBeats === 4 ? 'selected' : ''}>1/1</option>
+          <option value="2" ${cfg.rateBeats === 2 ? 'selected' : ''}>1/2</option>
+          <option value="1" ${cfg.rateBeats === 1 ? 'selected' : ''}>1/4</option>
+          <option value="0.5" ${cfg.rateBeats === 0.5 ? 'selected' : ''}>1/8</option>
+          <option value="0.25" ${cfg.rateBeats === 0.25 ? 'selected' : ''}>1/16</option>
+          <option value="0.125" ${cfg.rateBeats === 0.125 ? 'selected' : ''}>1/32</option>
+          <option value="0.0625" ${cfg.rateBeats === 0.0625 ? 'selected' : ''}>1/64</option>
+          <option value="0.03125" ${cfg.rateBeats === 0.03125 ? 'selected' : ''}>1/128</option>
+          <option value="0.015625" ${cfg.rateBeats === 0.015625 ? 'selected' : ''}>1/256</option>
+        </select>
+        <div class="ejs-knob-group mod-lfo-rate-free" ${cfg.tempoSync ? 'hidden' : ''}>
+          <label>Hz</label>
+          <input type="range" class="mod-rate-hz" min="0.01" max="40" step="0.01" value="${cfg.rateFree}" data-default="1">
+          <span class="mod-rate-hz-val">${cfg.rateFree.toFixed(2)}</span>
+        </div>
+        ${modConfigs.length > 1 ? '<button class="ejs-btn ejs-mod-lfo-del" title="Remove LFO">x</button>' : ''}
+      </div>
+      <div class="ejs-mod-lfo-controls">
+        <div class="ejs-knob-group">
+          <label>Depth</label>
+          <input type="range" class="mod-lfo-depth" min="0" max="1" step="0.01" value="${cfg.depth}" data-default="0.5">
+          <span class="mod-lfo-depth-val">${cfg.depth.toFixed(2)}</span>
+        </div>
+        <button class="ejs-btn mod-shape-btn">Shape</button>
+      </div>
+      <div class="ejs-mod-shape-wrap" hidden>
+        <canvas class="mod-shape-canvas" width="300" height="80"></canvas>
+        <span class="mod-shape-hint">Left-drag: move | Right-click: add/remove point</span>
+      </div>
+      <div class="ejs-mod-routes">
+        <div class="ejs-mod-routes-head">
+          <span>Routes</span>
+          <button class="ejs-btn mod-add-route">+ Route</button>
+        </div>
+        <div class="ejs-mod-route-list"></div>
+      </div>
+    `;
+    modLfoList.appendChild(el);
+
+    // Build route list
+    const routeList = el.querySelector('.ejs-mod-route-list');
+    cfg.routes.forEach((route, ri) => {
+      routeList.appendChild(buildRouteRow(i, ri, route));
+    });
+
+    // Shape editor
+    const shapeCanvas = el.querySelector('.mod-shape-canvas');
+    const editor = new LFOShapeEditor(shapeCanvas, i, (points) => {
+      modConfigs[i].customShape = points.map(p => ({ x: p.x, y: p.y }));
+      if (synth.modRouter) {
+        synth.modRouter.updateLFO(i, 'customShape', modConfigs[i].customShape);
+      }
+    });
+    if (cfg.customShape) editor.setPoints(cfg.customShape);
+    shapeEditors[i] = editor;
+
+    // Wire events
+    wireModLFOEvents(el, i);
   });
 
-  el.querySelector('.lfo-wave').addEventListener('change', (e) => {
-    synth.updateLFO(idx, 'waveform', e.target.value);
+  updateModAddBtn();
+  syncModToEngine();
+}
+
+function buildRouteRow(lfoIdx, routeIdx, route) {
+  const row = document.createElement('div');
+  row.className = 'ejs-mod-route';
+  row.dataset.routeIdx = routeIdx;
+
+  let targetOptions = '';
+  for (const [id, t] of Object.entries(MOD_TARGETS)) {
+    targetOptions += `<option value="${id}" ${route.targetId === id ? 'selected' : ''}>${t.label}</option>`;
+  }
+
+  row.innerHTML = `
+    <select class="mod-route-target">${targetOptions}</select>
+    <div class="ejs-knob-group">
+      <label>Amt</label>
+      <input type="range" class="mod-route-amount" min="-1" max="1" step="0.01" value="${route.amount}">
+      <span class="mod-route-amount-val">${route.amount.toFixed(2)}</span>
+    </div>
+    <button class="ejs-btn mod-route-remove">x</button>
+  `;
+
+  // Wire route events
+  row.querySelector('.mod-route-target').addEventListener('change', (e) => {
+    modConfigs[lfoIdx].routes[routeIdx].targetId = e.target.value;
+    if (synth.modRouter) synth.modRouter.updateRouteTarget(lfoIdx, routeIdx, e.target.value);
   });
 
-  el.querySelector('.lfo-rate').addEventListener('change', (e) => {
-    synth.updateLFO(idx, 'rateBeats', parseFloat(e.target.value));
+  const amtSlider = row.querySelector('.mod-route-amount');
+  const amtVal = row.querySelector('.mod-route-amount-val');
+  amtSlider.addEventListener('input', () => {
+    const v = parseFloat(amtSlider.value);
+    amtVal.textContent = v.toFixed(2);
+    modConfigs[lfoIdx].routes[routeIdx].amount = v;
+    if (synth.modRouter) synth.modRouter.updateRouteAmount(lfoIdx, routeIdx, v);
   });
 
-  const str = el.querySelector('.lfo-strength');
-  const strVal = el.querySelector('.lfo-strength-val');
-  str.addEventListener('input', () => {
-    const v = parseFloat(str.value);
-    strVal.textContent = idx === 0 ? v.toFixed(2) : Math.round(v).toString();
-    synth.updateLFO(idx, 'strength', v);
+  row.querySelector('.mod-route-remove').addEventListener('click', () => {
+    modConfigs[lfoIdx].routes.splice(routeIdx, 1);
+    if (synth.modRouter) synth.modRouter.removeRoute(lfoIdx, routeIdx);
+    buildModUI();
   });
+
+  return row;
+}
+
+function wireModLFOEvents(el, i) {
+  el.querySelector('.mod-lfo-toggle').addEventListener('change', (e) => {
+    modConfigs[i].enabled = e.target.checked;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'enabled', e.target.checked);
+  });
+
+  el.querySelector('.mod-lfo-wave').addEventListener('change', (e) => {
+    modConfigs[i].waveform = e.target.value;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'waveform', e.target.value);
+  });
+
+  el.querySelector('.mod-lfo-mode').addEventListener('change', (e) => {
+    modConfigs[i].mode = e.target.value;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'mode', e.target.value);
+  });
+
+  const syncToggle = el.querySelector('.mod-lfo-sync');
+  const rateSync = el.querySelector('.mod-lfo-rate-sync');
+  const rateFreeWrap = el.querySelector('.mod-lfo-rate-free');
+
+  syncToggle.addEventListener('change', (e) => {
+    modConfigs[i].tempoSync = e.target.checked;
+    rateSync.hidden = !e.target.checked;
+    rateFreeWrap.hidden = e.target.checked;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'tempoSync', e.target.checked);
+  });
+
+  rateSync.addEventListener('change', (e) => {
+    modConfigs[i].rateBeats = parseFloat(e.target.value);
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'rateBeats', modConfigs[i].rateBeats);
+  });
+
+  const rateHz = el.querySelector('.mod-rate-hz');
+  const rateHzVal = el.querySelector('.mod-rate-hz-val');
+  rateHz.addEventListener('input', () => {
+    const v = parseFloat(rateHz.value);
+    rateHzVal.textContent = v.toFixed(2);
+    modConfigs[i].rateFree = v;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'rateFree', v);
+  });
+
+  const depthSlider = el.querySelector('.mod-lfo-depth');
+  const depthVal = el.querySelector('.mod-lfo-depth-val');
+  depthSlider.addEventListener('input', () => {
+    const v = parseFloat(depthSlider.value);
+    depthVal.textContent = v.toFixed(2);
+    modConfigs[i].depth = v;
+    if (synth.modRouter) synth.modRouter.updateLFO(i, 'depth', v);
+  });
+
+  // Shape toggle
+  const shapeBtn = el.querySelector('.mod-shape-btn');
+  const shapeWrap = el.querySelector('.ejs-mod-shape-wrap');
+  shapeBtn.addEventListener('click', () => {
+    const show = shapeWrap.hidden;
+    shapeWrap.hidden = !show;
+    shapeBtn.classList.toggle('active', show);
+    if (show && shapeEditors[i]) shapeEditors[i].draw();
+  });
+
+  // Add route
+  el.querySelector('.mod-add-route').addEventListener('click', () => {
+    modConfigs[i].routes.push({ targetId: 'main-gain', amount: 0.5 });
+    if (synth.modRouter) synth.modRouter.addRoute(i, 'main-gain', 0.5);
+    buildModUI();
+  });
+
+  // Delete LFO
+  const delBtn = el.querySelector('.ejs-mod-lfo-del');
+  if (delBtn) {
+    delBtn.addEventListener('click', () => {
+      if (modConfigs.length <= 1) return;
+      modConfigs.splice(i, 1);
+      buildModUI();
+    });
+  }
+}
+
+function updateModAddBtn() {
+  modAddBtn.disabled = modConfigs.length >= MAX_LFOS;
+  modAddBtn.style.opacity = modConfigs.length >= MAX_LFOS ? '0.3' : '1';
+}
+
+modAddBtn.addEventListener('click', () => {
+  if (modConfigs.length >= MAX_LFOS) return;
+  modConfigs.push({
+    enabled: false, waveform: 'sine', mode: 'free',
+    tempoSync: true, rateBeats: 1, rateFree: 1, depth: 0.5,
+    routes: [], customShape: null,
+  });
+  buildModUI();
 });
+
+function syncModToEngine() {
+  if (synth.modRouter && synth.running) {
+    synth.modRouter.init(modConfigs);
+  }
+}
+
+// Initial build
+buildModUI();
 
 // ===================== EFFECTS =====================
 // Distortion
@@ -1248,15 +1521,27 @@ const meterCanvas = document.getElementById('meter-canvas');
 const meterCtx = meterCanvas.getContext('2d');
 
 let animId = null;
+let spectrogramViz = null;
 
 function startVisualizers() {
   if (animId) return;
+  // Initialize spectrogram
+  if (!spectrogramViz && synth.analyserFreq) {
+    const sgCanvas = document.getElementById('spectrogram-canvas');
+    if (sgCanvas) {
+      spectrogramViz = new Spectrogram(sgCanvas, synth.analyserFreq);
+    }
+  }
+  // Sync modulation to engine on first start
+  syncModToEngine();
+
   (function draw() {
     animId = requestAnimationFrame(draw);
     drawScope();
     drawSpectrum();
     drawMeter();
     drawEQ();
+    if (spectrogramViz) spectrogramViz.draw();
   })();
 }
 
