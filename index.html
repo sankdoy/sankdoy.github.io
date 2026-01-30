@@ -418,6 +418,20 @@
             fader.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
             appearOnScroll.observe(fader);
         });
+
+        // Resize embedded synth iframe to its content height (prevents scrolling inside the iframe).
+        (() => {
+            const iframe = document.querySelector('iframe.synth-embed');
+            if (!iframe) return;
+
+            window.addEventListener('message', (event) => {
+                const data = event && event.data;
+                if (!data || data.type !== 'ej-synth-height') return;
+                const h = Number(data.height);
+                if (!Number.isFinite(h) || h <= 0) return;
+                iframe.style.height = `${Math.min(Math.max(h, 520), 5000)}px`;
+            });
+        })();
     </script>
 </body>
 </html>

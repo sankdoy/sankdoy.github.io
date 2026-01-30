@@ -26,6 +26,13 @@
         <label>TRANSP</label>
         <input type="number" id="transpose" value="0" min="-24" max="24">
       </div>
+      <div class="ejs-hctl ejs-midi-controls">
+        <label>MIDI</label>
+        <input id="midi-file" class="ejs-midi-file" type="file" accept=".mid,.midi">
+        <button class="ejs-btn" id="midi-play" type="button" disabled>Play</button>
+        <button class="ejs-btn" id="midi-reset" type="button" disabled>Reset</button>
+        <span class="ejs-midi-status" id="midi-status"></span>
+      </div>
     </div>
 
     <!-- Cheat sheet -->

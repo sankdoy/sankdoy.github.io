@@ -2,6 +2,291 @@
 
 const synth = new SynthEngine();
 
+// ===================== MIDI PLAYER =====================
+const midiUi = {
+  file: document.getElementById('midi-file'),
+  play: document.getElementById('midi-play'),
+  reset: document.getElementById('midi-reset'),
+  status: document.getElementById('midi-status'),
+};
+
+const midiState = {
+  fileName: '',
+  events: [],
+  durationSec: 0,
+  isPlaying: false,
+  positionSec: 0,
+  startCtxTime: 0,
+  timerId: 0,
+  timeouts: [],
+  nextIndex: 0,
+  activeNotes: new Set(),
+};
+
+function formatTime(sec) {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function setMidiStatus(msg) {
+  if (midiUi.status) midiUi.status.textContent = msg || '';
+}
+
+function readU32BE(view, offset) { return view.getUint32(offset, false); }
+function readU16BE(view, offset) { return view.getUint16(offset, false); }
+
+function readVarLen(bytes, offset) {
+  let result = 0;
+  let i = 0;
+  while (i < 4) {
+    const b = bytes[offset + i];
+    result = (result << 7) | (b & 0x7f);
+    i += 1;
+    if ((b & 0x80) === 0) break;
+  }
+  return { value: result, next: offset + i };
+}
+
+function parseMidiFile(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  const bytes = new Uint8Array(arrayBuffer);
+
+  const str = (o) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+  if (str(0) !== 'MThd') throw new Error('Not a MIDI file (missing MThd).');
+  const headerLen = readU32BE(view, 4);
+  const format = readU16BE(view, 8);
+  const ntrks = readU16BE(view, 10);
+  const division = readU16BE(view, 12);
+  if ((division & 0x8000) !== 0) throw new Error('SMPTE timecode MIDI not supported.');
+
+  let offset = 8 + headerLen;
+  const eventsByTick = [];
+  const tempoEvents = [{ tick: 0, usPerQuarter: 500000 }];
+
+  for (let t = 0; t < ntrks; t += 1) {
+    if (str(offset) !== 'MTrk') throw new Error('Bad MIDI (missing MTrk).');
+    const trackLen = readU32BE(view, offset + 4);
+    let p = offset + 8;
+    const end = p + trackLen;
+    offset = end;
+
+    let tick = 0;
+    let runningStatus = 0;
+    while (p < end) {
+      const delta = readVarLen(bytes, p);
+      tick += delta.value;
+      p = delta.next;
+
+      let status = bytes[p];
+      if (status < 0x80) {
+        // Running status
+        status = runningStatus;
+      } else {
+        p += 1;
+        runningStatus = status;
+      }
+
+      if (status === 0xff) {
+        const type = bytes[p]; p += 1;
+        const len = readVarLen(bytes, p);
+        p = len.next;
+        const dataStart = p;
+        p += len.value;
+
+        if (type === 0x51 && len.value === 3) {
+          const usPerQuarter = (bytes[dataStart] << 16) | (bytes[dataStart + 1] << 8) | bytes[dataStart + 2];
+          tempoEvents.push({ tick, usPerQuarter });
+        }
+        continue;
+      }
+
+      if (status === 0xf0 || status === 0xf7) {
+        const len = readVarLen(bytes, p);
+        p = len.next + len.value;
+        continue;
+      }
+
+      const eventType = status & 0xf0;
+      // const channel = status & 0x0f;
+
+      if (eventType === 0x80 || eventType === 0x90) {
+        const note = bytes[p]; const vel = bytes[p + 1]; p += 2;
+        const on = eventType === 0x90 && vel > 0;
+        eventsByTick.push({ tick, type: on ? 'on' : 'off', note, velocity: vel / 127 });
+        continue;
+      }
+
+      // Skip other channel messages
+      if (eventType === 0xa0 || eventType === 0xb0 || eventType === 0xe0) {
+        p += 2;
+        continue;
+      }
+      if (eventType === 0xc0 || eventType === 0xd0) {
+        p += 1;
+        continue;
+      }
+      // Unknown: try to bail safely
+      break;
+    }
+  }
+
+  tempoEvents.sort((a, b) => a.tick - b.tick);
+  eventsByTick.sort((a, b) => a.tick - b.tick);
+
+  let tempoIndex = 0;
+  let curTempo = tempoEvents[tempoIndex];
+  let nextTempo = tempoEvents[tempoIndex + 1] || null;
+  let lastTick = 0;
+  let curTime = 0;
+
+  const tickToSec = (targetTick) => {
+    while (nextTempo && targetTick >= nextTempo.tick) {
+      const dt = nextTempo.tick - lastTick;
+      curTime += (dt / division) * (curTempo.usPerQuarter / 1e6);
+      lastTick = nextTempo.tick;
+      tempoIndex += 1;
+      curTempo = tempoEvents[tempoIndex];
+      nextTempo = tempoEvents[tempoIndex + 1] || null;
+    }
+    const dt = targetTick - lastTick;
+    return curTime + (dt / division) * (curTempo.usPerQuarter / 1e6);
+  };
+
+  const events = eventsByTick.map((e) => ({ ...e, timeSec: tickToSec(e.tick) }));
+  const durationSec = events.length ? events[events.length - 1].timeSec : 0;
+
+  return { format, division, events, durationSec };
+}
+
+function stopMidiPlayback({ resetPosition } = {}) {
+  if (midiState.timerId) {
+    clearInterval(midiState.timerId);
+    midiState.timerId = 0;
+  }
+  midiState.timeouts.forEach((id) => clearTimeout(id));
+  midiState.timeouts = [];
+
+  for (const note of midiState.activeNotes) {
+    try { synth.noteOff(note); } catch (_) {}
+  }
+  midiState.activeNotes.clear();
+
+  midiState.isPlaying = false;
+  if (resetPosition) {
+    midiState.positionSec = 0;
+    midiState.nextIndex = 0;
+  }
+  if (midiUi.play) midiUi.play.textContent = 'Play';
+}
+
+function scheduleMidiLoop() {
+  if (!synth.ctx) return;
+  const lookaheadSec = 0.12;
+  const intervalMs = 30;
+
+  midiState.timerId = setInterval(() => {
+    if (!midiState.isPlaying || !synth.ctx) return;
+
+    const nowCtx = synth.ctx.currentTime;
+    const posNow = nowCtx - midiState.startCtxTime;
+    midiState.positionSec = posNow;
+
+    const windowEnd = posNow + lookaheadSec;
+    while (midiState.nextIndex < midiState.events.length) {
+      const evt = midiState.events[midiState.nextIndex];
+      if (evt.timeSec > windowEnd) break;
+      midiState.nextIndex += 1;
+
+      const delayMs = Math.max(0, (evt.timeSec - posNow) * 1000);
+      const id = setTimeout(() => {
+        if (!midiState.isPlaying) return;
+        if (evt.type === 'on') {
+          synth.noteOn(evt.note);
+          midiState.activeNotes.add(evt.note);
+        } else {
+          synth.noteOff(evt.note);
+          midiState.activeNotes.delete(evt.note);
+        }
+      }, delayMs);
+      midiState.timeouts.push(id);
+    }
+
+    if (posNow >= midiState.durationSec + 0.05) {
+      stopMidiPlayback({ resetPosition: true });
+      setMidiStatus(`${midiState.fileName} • done`);
+    }
+  }, intervalMs);
+}
+
+async function ensureSynthAudioOn() {
+  if (synth.ctx && synth.ctx.state === 'running') return;
+  const powerBtn = document.getElementById('power-btn');
+  if (powerBtn) powerBtn.click();
+}
+
+function initMidiUi() {
+  if (!midiUi.file || !midiUi.play || !midiUi.reset) return;
+
+  midiUi.file.addEventListener('change', async () => {
+    const f = midiUi.file.files && midiUi.file.files[0];
+    if (!f) return;
+    try {
+      stopMidiPlayback({ resetPosition: true });
+      const buf = await f.arrayBuffer();
+      const parsed = parseMidiFile(buf);
+      midiState.fileName = f.name;
+      midiState.events = parsed.events;
+      midiState.durationSec = parsed.durationSec;
+      midiState.positionSec = 0;
+      midiState.nextIndex = 0;
+      midiUi.play.disabled = !midiState.events.length;
+      midiUi.reset.disabled = !midiState.events.length;
+      setMidiStatus(`${f.name} • ${formatTime(parsed.durationSec)}`);
+    } catch (err) {
+      console.error(err);
+      midiState.fileName = '';
+      midiState.events = [];
+      midiState.durationSec = 0;
+      midiUi.play.disabled = true;
+      midiUi.reset.disabled = true;
+      setMidiStatus('MIDI load failed');
+      alert(err.message || String(err));
+    }
+  });
+
+  midiUi.play.addEventListener('click', async () => {
+    if (!midiState.events.length) return;
+    await ensureSynthAudioOn();
+    if (!synth.ctx) return;
+
+    if (!midiState.isPlaying) {
+      // Start/resume from current position
+      stopMidiPlayback();
+      midiState.isPlaying = true;
+      midiState.startCtxTime = synth.ctx.currentTime - midiState.positionSec;
+      // Seek nextIndex to current position
+      let i = 0;
+      while (i < midiState.events.length && midiState.events[i].timeSec < midiState.positionSec) i += 1;
+      midiState.nextIndex = i;
+      midiUi.play.textContent = 'Pause';
+      scheduleMidiLoop();
+      return;
+    }
+
+    // Pause
+    midiState.positionSec = synth.ctx.currentTime - midiState.startCtxTime;
+    stopMidiPlayback();
+    setMidiStatus(`${midiState.fileName} • ${formatTime(midiState.positionSec)} / ${formatTime(midiState.durationSec)}`);
+  });
+
+  midiUi.reset.addEventListener('click', () => {
+    stopMidiPlayback({ resetPosition: true });
+    if (midiState.fileName) setMidiStatus(`${midiState.fileName} • ${formatTime(midiState.durationSec)}`);
+  });
+}
+
 // ===================== PATCH CODE (SAVE/LOAD) =====================
 const PATCH_PREFIX = 'EJS1.';
 
@@ -557,6 +842,8 @@ powerBtn.addEventListener('click', async () => {
   if (on) startVisualizers();
 });
 
+initMidiUi();
+
 // ===================== PRESETS (add to header) =====================
 const presetWrap = document.createElement('div');
 presetWrap.className = 'ejs-preset-wrap';
@@ -610,6 +897,27 @@ const patchLoadBtn = document.getElementById('patch-load-btn');
 function setPatchStatus(msg) {
   patchStatus.textContent = msg || '';
 }
+
+// ===================== EMBED RESIZE (avoid iframe scrolling) =====================
+function postEmbedHeight() {
+  try {
+    if (!window.parent || window.parent === window) return;
+    const h = Math.ceil(document.documentElement.scrollHeight);
+    window.parent.postMessage({ type: 'ej-synth-height', height: h }, '*');
+  } catch (_) {}
+}
+
+try {
+  const ro = new ResizeObserver(() => postEmbedHeight());
+  ro.observe(document.documentElement);
+  ro.observe(document.body);
+} catch (_) {
+  window.addEventListener('resize', postEmbedHeight);
+}
+
+document.addEventListener('toggle', postEmbedHeight, true);
+window.addEventListener('load', postEmbedHeight);
+postEmbedHeight();
 
 function openPatchModal() {
   setPatchStatus('');

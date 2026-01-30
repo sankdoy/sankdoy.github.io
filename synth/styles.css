@@ -16,15 +16,41 @@
   --track: #222233;
 }
 
+html, body {
+  width: 100%;
+  height: auto;
+  background: var(--bg);
+}
+
 #ej-synth {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 8px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 10px 14px;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 11px;
   color: var(--text);
   background: var(--bg);
   overflow: hidden;
+}
+
+/* Header: MIDI */
+.ejs-midi-file {
+  max-width: 220px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text);
+}
+.ejs-midi-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ejs-midi-status {
+  color: var(--dim);
+  font-size: 10px;
+  min-width: 120px;
 }
 
 /* Cheat sheet */
