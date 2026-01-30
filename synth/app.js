@@ -742,8 +742,13 @@ const PRESETS = {
 // ===================== RANDOMISE =====================
 function randomPreset() {
   const waves = ['sine', 'square', 'triangle', 'sawtooth'];
+  const overtoneRatios = [
+    0.5, 2/3, 0.75, 1, 1.25, 4/3, 1.5, 2, 2.5, 3, 4, 5, 6, 8,
+  ].map((v) => Math.round(v * 10000) / 10000);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const rng = (lo, hi) => lo + Math.random() * (hi - lo);
+  const roundStep = (v, step) => Math.round(v / step) * step;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const coin = (chance = 0.5) => Math.random() < chance;
 
   const p = {
@@ -752,7 +757,8 @@ function randomPreset() {
     transpose: [0, 0, 0, -12, -12, -24, 12][Math.floor(Math.random() * 7)],
     voices: Array.from({ length: 4 }, () => ({
       waveform: pick(waves),
-      overtone: coin(0.6) ? rng(0.5, 4) : rng(0.5, 8),
+      // Keep oscillator ratios musically "in tune" (simple harmonic ratios).
+      overtone: pick(overtoneRatios),
       gain: rng(0.05, 0.8),
     })),
     noise: {
@@ -766,9 +772,10 @@ function randomPreset() {
       release: rng(0.01, 3.0),
     },
     eq: {
-      highpass: { frequency: rng(20, 2000), Q: rng(0.3, 8), gain: 0, enabled: coin(0.8) },
-      peak: { frequency: rng(200, 10000), Q: rng(0.3, 18), gain: rng(-12, 18), enabled: coin(0.7) },
-      lowpass: { frequency: rng(500, 18000), Q: rng(0.3, 12), gain: 0, enabled: coin(0.8) },
+      // Keep EQ numbers clean so labels don't overflow / glitch.
+      highpass: { frequency: Math.round(rng(20, 2000)), Q: roundStep(rng(0.3, 8), 0.1), gain: 0, enabled: coin(0.8) },
+      peak: { frequency: Math.round(rng(200, 10000)), Q: roundStep(rng(0.3, 18), 0.1), gain: roundStep(rng(-12, 18), 0.1), enabled: coin(0.7) },
+      lowpass: { frequency: Math.round(rng(500, 18000)), Q: roundStep(rng(0.3, 12), 0.1), gain: 0, enabled: coin(0.8) },
     },
     lfos: [
       { enabled: coin(0.4), waveform: pick(waves), rateBeats: pick([4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]), strength: rng(0.02, 0.8) },
@@ -818,6 +825,12 @@ function randomPreset() {
     limiter: { threshold: rng(-15, -1), knee: rng(1, 20), enabled: true },
   };
 
+  // Hard caps / cleanup
+  p.noise.level = clamp(p.noise.level, 0, 0.5);
+  p.eq.highpass.frequency = clamp(p.eq.highpass.frequency, 20, 2000);
+  p.eq.peak.frequency = clamp(p.eq.peak.frequency, 80, 16000);
+  p.eq.lowpass.frequency = clamp(p.eq.lowpass.frequency, 200, 20000);
+
   synth.loadPreset(p);
   refreshUI(p);
   // Set preset selector to show nothing selected
@@ -839,7 +852,10 @@ powerBtn.addEventListener('click', async () => {
   const on = await synth.toggle();
   powerBtn.textContent = on ? 'ON' : 'OFF';
   powerBtn.className = on ? 'power-on' : 'power-off';
-  if (on) startVisualizers();
+  if (on) {
+    startVisualizers();
+    syncModToEngine();
+  }
 });
 
 initMidiUi();
@@ -996,7 +1012,8 @@ function refreshUI(p) {
     const band = el.dataset.band;
     const cfg = p.eq[band];
     el.querySelector('.eq-freq').value = cfg.frequency;
-    const fv = cfg.frequency >= 1000 ? `${(cfg.frequency/1000).toFixed(1)}kHz` : `${cfg.frequency} Hz`;
+    const freqInt = Math.round(cfg.frequency);
+    const fv = freqInt >= 1000 ? `${(freqInt / 1000).toFixed(1)}kHz` : `${freqInt} Hz`;
     el.querySelector('.eq-freq-val').textContent = fv;
     el.querySelector('.eq-q').value = cfg.Q;
     el.querySelector('.eq-q-val').textContent = cfg.Q.toFixed(1);
@@ -1901,3 +1918,49 @@ function drawMeter() {
   meterCtx.fillStyle = grad;
   meterCtx.fillRect(6, h - barH, w - 12, barH);
 }
+
+// ===================== DEFAULT STATE =====================
+const DEFAULT_PATCH_CODE = "EJS2.eyJuYW1lIjoiUGF0Y2giLCJicG0iOjEyMCwibWFpbkdhaW4iOjAuMywidHJhbnNwb3NlIjowLCJ2b2ljZXMiOlt7IndhdmVmb3JtIjoic2luZSIsIm92ZXJ0b25lIjoxLCJnYWluIjowLjM2MzIzMDUwMDMzMTAxMTh9LHsid2F2ZWZvcm0iOiJzaW5lIiwib3ZlcnRvbmUiOjEsImdhaW4iOjAuNjIyMDQ4NjkxNzMzMjEzNn0seyJ3YXZlZm9ybSI6InNhd3Rvb3RoIiwib3ZlcnRvbmUiOjEsImdhaW4iOjAuNzkxNTk1MzM4NTY2MzA2NH0seyJ3YXZlZm9ybSI6InNxdWFyZSIsIm92ZXJ0b25lIjoxLCJnYWluIjowLjQzMzAyNzE0MzU1MTk3NDd9XSwibm9pc2UiOnsibGV2ZWwiOjAuNDE3MTM4MzEwMzg2ODY2OTQsImVuYWJsZWQiOmZhbHNlfSwiZW52ZWxvcGUiOnsiYXR0YWNrIjowLjAwMSwiZGVjYXkiOjAuNzM0LCJzdXN0YWluIjowLjEyLCJyZWxlYXNlIjoxLjY2OX0sImVxIjp7ImhpZ2hwYXNzIjp7ImZyZXF1ZW5jeSI6MTIxMi4xNzgwMjI0MjU0NzcxLCJRIjo0LjkzNzA3NTU2ODAyMzE0OCwiZ2FpbiI6MCwiZW5hYmxlZCI6ZmFsc2V9LCJwZWFrIjp7ImZyZXF1ZW5jeSI6NzYxOC4xODA4ODE0OTExMzMsIlEiOjEzLjkxNjQyMzI1MzIwNDE3NiwiZ2FpbiI6Mi40NTY2NTc2ODA1NzE1NDksImVuYWJsZWQiOmZhbHNlfSwibG93cGFzcyI6eyJmcmVxdWVuY3kiOjEzNzMzLjU2ODk4ODc3NDE4NSwiUSI6My4wMjIwMDk5MzU3OTIzNjM4LCJnYWluIjowLCJlbmFibGVkIjp0cnVlfX0sImxmb3MiOlt7ImVuYWJsZWQiOmZhbHNlLCJ3YXZlZm9ybSI6InNpbmUiLCJyYXRlQmVhdHMiOjEsInN0cmVuZ3RoIjowLjV9LHsiZW5hYmxlZCI6ZmFsc2UsIndhdmVmb3JtIjoic2luZSIsInJhdGVCZWF0cyI6MSwic3RyZW5ndGgiOjB9LHsiZW5hYmxlZCI6ZmFsc2UsIndhdmVmb3JtIjoic2luZSIsInJhdGVCZWF0cyI6MSwic3RyZW5ndGgiOjB9XSwibW9kdWxhdGlvbiI6W3siZW5hYmxlZCI6ZmFsc2UsIndhdmVmb3JtIjoic2F3dG9vdGgiLCJtb2RlIjoidHJpZ2dlciIsInRlbXBvU3luYyI6ZmFsc2UsInJhdGVCZWF0cyI6MiwicmF0ZUZyZWUiOjEuNjI1OTcyNzg1Mjk2Mjg2MiwiZGVwdGgiOjAuNTIyMDY5Njc5NDg4ODE4NCwicm91dGVzIjpbeyJ0YXJnZXRJZCI6Im9zYzMtcGl0Y2giLCJhbW91bnQiOi0wLjI1MzM3Njg1MzgwODQ2NjR9XSwiY3VzdG9tU2hhcGUiOm51bGx9LHsiZW5hYmxlZCI6dHJ1ZSwid2F2ZWZvcm0iOiJzYXd0b290aCIsIm1vZGUiOiJlbnZlbG9wZSIsInRlbXBvU3luYyI6dHJ1ZSwicmF0ZUJlYXRzIjoxLCJyYXRlRnJlZSI6OC43MiwiZGVwdGgiOjAuNTI5MDI5MzIxOTU1MTM1Niwicm91dGVzIjpbeyJ0YXJnZXRJZCI6ImNvbWItZGVsYXkiLCJhbW91bnQiOjAuNDI0OTkyMjc3Mzk0MDgzNzR9XSwiY3VzdG9tU2hhcGUiOm51bGx9XSwiZGlzdG9ydGlvbiI6eyJkcml2ZSI6MC44MTc4ODc3MDAyNTU3MzI3LCJ0b25lIjoxNTY3OS4zMDMxNzI1NjUwNjQsIm1peCI6MC4wODY5MjkyNDY3MjkyOTQwNywiZW5hYmxlZCI6dHJ1ZX0sInJldmVyYiI6eyJzaXplIjo0LjM1OTcxNDM4MDg3MDc5MSwiZGFtcCI6NzYxNS45NjUxMDc3NjIzMDUsIm1peCI6MC40OTM0NzM2MTY4NDU5OTEyLCJlbmFibGVkIjp0cnVlfSwiY29tYiI6eyJkZWxheSI6MjguNywiZmVlZGJhY2siOjAuMjQsIm1peCI6MC40NywiZW5hYmxlZCI6dHJ1ZX0sImRlbGF5Ijp7InRpbWUiOjAuOTM4MjM2MTk1MDI0MTQyMywiZmVlZGJhY2siOjAuNDA2ODA4NzAxMzE0MzI2LCJtaXgiOjAuMDUwODIxMDA0ODI3Njg0NjYsImVuYWJsZWQiOmZhbHNlfSwibGltaXRlciI6eyJ0aHJlc2hvbGQiOi04LjgzOTAwMDYzMjgzNDg2LCJrbmVlIjoxOS44NTY1MjE5NTQyNjg2MDgsImVuYWJsZWQiOnRydWV9fQ";
+const DEFAULT_MIDI_URL = "midi/can-you-hear-the-music.mid";
+const DEFAULT_MIDI_LABEL = "Can You Hear The Music";
+
+async function loadDefaultMidi() {
+  if (!DEFAULT_MIDI_URL || !midiUi.play || !midiUi.reset) return;
+  try {
+    const res = await fetch(DEFAULT_MIDI_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${DEFAULT_MIDI_URL}`);
+    const buf = await res.arrayBuffer();
+    const parsed = parseMidiFile(buf);
+    midiState.fileName = DEFAULT_MIDI_LABEL;
+    midiState.events = parsed.events;
+    midiState.durationSec = parsed.durationSec;
+    midiState.positionSec = 0;
+    midiState.nextIndex = 0;
+    midiUi.play.disabled = !midiState.events.length;
+    midiUi.reset.disabled = !midiState.events.length;
+    setMidiStatus(`${DEFAULT_MIDI_LABEL} • ${formatTime(parsed.durationSec)}`);
+  } catch (err) {
+    console.warn("[EJ Synth] Default MIDI failed to load:", err);
+    midiUi.play.disabled = true;
+    midiUi.reset.disabled = true;
+    setMidiStatus("Default MIDI missing");
+  }
+}
+
+function loadDefaultPatch() {
+  if (!DEFAULT_PATCH_CODE) return;
+  try {
+    const decoded = decodePatch(DEFAULT_PATCH_CODE);
+    const p = normalizePatch(decoded);
+    synth.loadPreset(p);
+    synth.setBPM(p.bpm);
+    document.getElementById('bpm').value = p.bpm;
+    refreshUI(p);
+    presetSelect.value = '';
+  } catch (err) {
+    console.warn("[EJ Synth] Default patch failed to load:", err);
+  }
+}
+
+loadDefaultPatch();
+loadDefaultMidi();

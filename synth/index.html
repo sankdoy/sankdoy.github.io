@@ -47,6 +47,7 @@
               <li><strong>BPM</strong>: tempo used by time-synced LFO rates (1/4, 1/8, etc.).</li>
               <li><strong>GAIN</strong>: main output volume.</li>
               <li><strong>TRANSP</strong>: transpose all notes in semitones (+12 = 1 octave up, -12 = 1 octave down).</li>
+              <li><strong>MIDI</strong>: load a `.mid/.midi` file, then <strong>Play</strong>/<strong>Pause</strong>/<strong>Reset</strong> using the current patch sound.</li>
               <li><strong>Preset</strong>: loads a saved preset from the dropdown.</li>
               <li><strong>RND</strong>: randomises lots of parameters to help find new sounds.</li>
               <li><strong>CODE</strong>: opens “patch code” — copy/paste to save/share/load a preset string.</li>
@@ -226,7 +227,7 @@
               </div>
               <div class="ejs-knob-group">
                 <label>Level</label>
-                <input type="range" id="noise-level" min="0" max="1" step="0.01" value="0" data-default="0">
+                <input type="range" id="noise-level" min="0" max="0.5" step="0.01" value="0" data-default="0">
                 <span id="noise-level-val">0.00</span>
               </div>
             </div>

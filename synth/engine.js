@@ -642,14 +642,15 @@ class SynthEngine {
     this.noiseConfig.enabled = v;
     if (!this.running) return;
     for (const voice of this.activeVoices.values()) {
-      if (voice.noiseTap) voice.noiseTap.gain.value = v ? this.noiseConfig.level : 0;
+      if (voice.noiseTap) voice.noiseTap.gain.value = v ? Math.max(0, Math.min(0.5, this.noiseConfig.level)) : 0;
     }
   }
   setNoiseLevel(v) {
-    this.noiseConfig.level = v;
+    const clamped = Math.max(0, Math.min(0.5, v));
+    this.noiseConfig.level = clamped;
     if (!this.running || !this.noiseConfig.enabled) return;
     for (const voice of this.activeVoices.values()) {
-      if (voice.noiseTap) voice.noiseTap.gain.value = v;
+      if (voice.noiseTap) voice.noiseTap.gain.value = clamped;
     }
   }
 
