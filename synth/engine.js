@@ -300,12 +300,13 @@ class SynthEngine {
     const length = Math.floor(this.ctx.sampleRate * seconds);
     const impulse = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
     const decay = 3.5;
+    const norm = 1 / Math.sqrt(length * 0.5);
     for (let ch = 0; ch < 2; ch++) {
       const data = impulse.getChannelData(ch);
       for (let i = 0; i < length; i++) {
         const t = i / length;
         const env = Math.pow(1 - t, decay);
-        data[i] = (Math.random() * 2 - 1) * env;
+        data[i] = (Math.random() * 2 - 1) * env * norm;
       }
     }
     this.reverbConvolver.buffer = impulse;
