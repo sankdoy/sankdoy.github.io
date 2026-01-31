@@ -237,6 +237,7 @@ textarea {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
   gap: 6px;
+  align-items: start;
 }
 .ejs-main-grid > .ejs-panel { min-width: 0; }
 

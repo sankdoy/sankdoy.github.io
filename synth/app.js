@@ -171,8 +171,14 @@ function parseMidiFile(arrayBuffer) {
   const events = eventsByTick.map((e) => ({ ...e, timeSec: tickToSec(e.tick) }));
   const durationSec = events.length ? events[events.length - 1].timeSec : 0;
 
-  // Extract initial BPM from first tempo event
-  const initialBpm = Math.round(60000000 / tempoEvents[0].usPerQuarter);
+  // Extract initial BPM: use the last tempo event at tick 0 (the file's own
+  // tempo takes precedence over the hardcoded 120 BPM fallback).
+  let initialUs = tempoEvents[0].usPerQuarter;
+  for (const te of tempoEvents) {
+    if (te.tick > 0) break;
+    initialUs = te.usPerQuarter;
+  }
+  const initialBpm = Math.round(60000000 / initialUs);
 
   return { format, division, events, durationSec, bpm: initialBpm };
 }
@@ -767,9 +773,7 @@ const PRESETS = {
 // ===================== RANDOMISE =====================
 function randomPreset() {
   const waves = ['sine', 'square', 'triangle', 'sawtooth'];
-  // Pure harmonic ratios only — integer multiples and sub-octaves so
-  // oscillators always stay in tune with each other.
-  const overtoneRatios = [0.5, 1, 2, 3, 4, 5, 6, 8];
+  // Keep all oscillators at fundamental (overtone 1) for random presets.
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const rng = (lo, hi) => lo + Math.random() * (hi - lo);
   const roundStep = (v, step) => Math.round(v / step) * step;
@@ -782,8 +786,7 @@ function randomPreset() {
     transpose: [0, 0, 0, -12, -12, -24, 12][Math.floor(Math.random() * 7)],
     voices: Array.from({ length: 4 }, () => ({
       waveform: pick(waves),
-      // Keep oscillator ratios musically "in tune" (simple harmonic ratios).
-      overtone: pick(overtoneRatios),
+      overtone: 1,
       gain: rng(0.05, 0.5),
     })),
     noise: {
@@ -862,15 +865,31 @@ function randomPreset() {
   presetSelect.value = '';
 }
 
-// ===================== DOUBLE-CLICK: TYPE EXACT VALUE =====================
+// ===================== DOUBLE-CLICK: RESET SLIDER / TYPE EXACT VALUE =====================
+
+// Double-click a SLIDER → reset to its default value
 document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
   const el = e.target;
   if (el.tagName !== 'INPUT' || el.type !== 'range') return;
+  if (el.dataset.default === undefined) return;
+  e.preventDefault();
+  el.value = el.dataset.default;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+// Double-click a VALUE SPAN → open a text input to type an exact number
+document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
+  const span = e.target;
+  if (span.tagName !== 'SPAN') return;
+  // Find the sibling range input in the same knob-group
+  const group = span.closest('.ejs-knob-group');
+  if (!group) return;
+  const el = group.querySelector('input[type="range"]');
+  if (!el) return;
 
   e.preventDefault();
 
-  // Create a small text input overlaying the slider
-  const rect = el.getBoundingClientRect();
+  const rect = span.getBoundingClientRect();
   const parentRect = el.offsetParent ? el.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
   const isLogFreq = el.dataset.freqMin !== undefined;
   const input = document.createElement('input');
@@ -887,8 +906,8 @@ document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
   input.style.cssText = `
     position: absolute;
     left: ${rect.left - parentRect.left}px;
-    top: ${rect.top - parentRect.top}px;
-    width: ${Math.max(rect.width, 50)}px;
+    top: ${rect.top - parentRect.top - 2}px;
+    width: ${Math.max(rect.width, 44)}px;
     height: ${rect.height + 4}px;
     background: var(--knob, #1a1a2a);
     border: 1px solid var(--accent, #4a9eff);
@@ -912,7 +931,6 @@ document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
     const v = parseFloat(input.value);
     if (Number.isFinite(v)) {
       if (isLogFreq) {
-        // User typed an actual frequency — convert to slider position
         const fMin = parseFloat(el.dataset.freqMin);
         const fMax = parseFloat(el.dataset.freqMax);
         const clamped = Math.max(fMin, Math.min(fMax, v));
@@ -930,7 +948,7 @@ document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
     if (ev.key === 'Escape') { ev.preventDefault(); if (input.parentNode) input.parentNode.removeChild(input); }
-    ev.stopPropagation(); // prevent synth keyboard from firing
+    ev.stopPropagation();
   });
   input.addEventListener('keyup', (ev) => ev.stopPropagation());
   input.addEventListener('blur', commit);
