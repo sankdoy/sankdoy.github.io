@@ -1109,6 +1109,8 @@ function refreshUI(p) {
     el.querySelector('.overtone').value = v.overtone;
     el.querySelector('.overtone-val').textContent = v.overtone.toFixed(2);
     el.querySelector('.voice-gain').value = v.gain;
+    const vgv = el.querySelector('.voice-gain-val');
+    if (vgv) vgv.textContent = v.gain.toFixed(2);
   });
 
   // ADSR
@@ -1240,8 +1242,12 @@ document.querySelectorAll('.ejs-osc[data-voice]').forEach((el) => {
     synth.setVoiceConfig(idx, 'overtone', v);
   });
 
-  el.querySelector('.voice-gain').addEventListener('input', (e) => {
-    synth.setVoiceConfig(idx, 'gain', parseFloat(e.target.value));
+  const vg = el.querySelector('.voice-gain');
+  const vgVal = el.querySelector('.voice-gain-val');
+  vg.addEventListener('input', () => {
+    const v = parseFloat(vg.value);
+    if (vgVal) vgVal.textContent = v.toFixed(2);
+    synth.setVoiceConfig(idx, 'gain', v);
   });
 });
 
@@ -1395,6 +1401,43 @@ function drawEQ() {
     for (let i = 0; i < w; i++) drawEQ._freqs[i] = xToFreq(i, w);
   }
   const freqs = drawEQ._freqs;
+
+  // Temporarily apply LFO modulation offsets to EQ nodes so getFrequencyResponse
+  // reflects the modulated values (Web Audio doesn't include connected inputs in
+  // getFrequencyResponse).
+  const _eqModSaved = {};
+  if (synth.running) {
+    const eqTargetMap = {
+      'eq-hp-freq': synth.eqHP?.frequency,
+      'eq-pk-freq': synth.eqPeak?.frequency,
+      'eq-lp-freq': synth.eqLP?.frequency,
+      'eq-pk-gain': synth.eqPeak?.gain,
+    };
+    const now = performance.now() / 1000;
+    for (const cfg of modConfigs) {
+      if (!cfg.enabled || cfg.depth <= 0) continue;
+      let freqHz;
+      if (cfg.tempoSync) {
+        freqHz = ((synth.bpm || 120) / 60) / (cfg.rateBeats * 4);
+      } else {
+        freqHz = cfg.rateFree;
+      }
+      const lfoVal = _lfoWaveValue(cfg.waveform, now * freqHz) * cfg.depth;
+      for (const route of cfg.routes) {
+        const param = eqTargetMap[route.targetId];
+        if (!param) continue;
+        const target = window.MOD_TARGETS?.[route.targetId];
+        if (!target) continue;
+        if (!_eqModSaved[route.targetId]) {
+          _eqModSaved[route.targetId] = { param, orig: param.value, offset: 0 };
+        }
+        _eqModSaved[route.targetId].offset += lfoVal * route.amount * (target.scale || 1);
+      }
+    }
+    for (const s of Object.values(_eqModSaved)) {
+      s.param.value = s.orig + s.offset;
+    }
+  }
 
   // Draw per-band curves
   for (const band of ['highpass', 'peak', 'lowpass']) {
@@ -1972,10 +2015,10 @@ let spectrogramViz = null;
 // Maps targetId → { el: value span element, base: () => base value, fmt: (v) => string }
 const _modUiMap = {
   'main-gain':   { el: () => document.getElementById('main-gain-val'),       base: () => parseFloat(document.getElementById('main-gain').value),           fmt: v => v.toFixed(2) },
-  'osc1-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="0"] .voice-gain'),  isSlider: true },
-  'osc2-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="1"] .voice-gain'),  isSlider: true },
-  'osc3-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="2"] .voice-gain'),  isSlider: true },
-  'osc4-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="3"] .voice-gain'),  isSlider: true },
+  'osc1-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="0"] .voice-gain-val'), base: () => synth.voiceConfigs?.[0]?.gain ?? 0.25, fmt: v => v.toFixed(2) },
+  'osc2-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="1"] .voice-gain-val'), base: () => synth.voiceConfigs?.[1]?.gain ?? 0.25, fmt: v => v.toFixed(2) },
+  'osc3-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="2"] .voice-gain-val'), base: () => synth.voiceConfigs?.[2]?.gain ?? 0.25, fmt: v => v.toFixed(2) },
+  'osc4-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="3"] .voice-gain-val'), base: () => synth.voiceConfigs?.[3]?.gain ?? 0.25, fmt: v => v.toFixed(2) },
   'eq-hp-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="highpass"] .eq-freq-val'), base: () => synth.eqConfigs?.highpass?.frequency || 80,  fmt: v => fmtFreq(v) },
   'eq-pk-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="peak"] .eq-freq-val'),    base: () => synth.eqConfigs?.peak?.frequency || 1000,     fmt: v => fmtFreq(v) },
   'eq-lp-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="lowpass"] .eq-freq-val'), base: () => synth.eqConfigs?.lowpass?.frequency || 18000,  fmt: v => fmtFreq(v) },
