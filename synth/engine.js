@@ -474,12 +474,14 @@ class SynthEngine {
     voice.envGain = envGain;
 
     // Noise (shares one global noise source; per-voice tap is shaped by the envelope)
+    // Scale noiseBus gain inversely with voice count so total noise stays constant.
     if (this.noiseBus) {
       const noiseTap = this.ctx.createGain();
       noiseTap.gain.value = this.noiseConfig.enabled ? this.noiseConfig.level : 0;
       this.noiseBus.connect(noiseTap);
       noiseTap.connect(envGain);
       voice.noiseTap = noiseTap;
+      this.noiseBus.gain.value = 1 / Math.max(1, this.activeVoices.size + 1);
     }
 
     for (const vc of this.voiceConfigs) {
@@ -544,6 +546,8 @@ class SynthEngine {
       if (voice.noiseTap && this.noiseBus) {
         try { this.noiseBus.disconnect(voice.noiseTap); } catch (e) {}
         try { voice.noiseTap.disconnect(); } catch (e) {}
+        // Re-scale noise bus for remaining voices
+        this.noiseBus.gain.value = 1 / Math.max(1, this.activeVoices.size);
       }
       // Clean up modulation gain nodes for this voice
       if (voice._modGains) {
