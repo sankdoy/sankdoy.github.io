@@ -58,11 +58,22 @@ class LFOShapeEditor {
     this.draw();
   }
 
+  // Convert CSS-pixel mouse coords to canvas-internal coords (accounts for
+  // the canvas being stretched by CSS width:100%).
+  _cssToCanvas(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      cx: (e.clientX - rect.left) * (this.canvas.width / rect.width),
+      cy: (e.clientY - rect.top) * (this.canvas.height / rect.height),
+    };
+  }
+
   _bindEvents() {
     this.canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      const { px, py } = this._canvasToPoint(e.offsetX, e.offsetY);
-      const hitIdx = this._hitTest(e.offsetX, e.offsetY);
+      const { cx, cy } = this._cssToCanvas(e);
+      const { px, py } = this._canvasToPoint(cx, cy);
+      const hitIdx = this._hitTest(cx, cy);
 
       if (hitIdx !== null && hitIdx !== 0 && hitIdx !== this.points.length - 1) {
         this.points.splice(hitIdx, 1);
@@ -76,7 +87,8 @@ class LFOShapeEditor {
 
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-      const hitIdx = this._hitTest(e.offsetX, e.offsetY);
+      const { cx, cy } = this._cssToCanvas(e);
+      const hitIdx = this._hitTest(cx, cy);
       if (hitIdx !== null) {
         this.dragging = hitIdx;
         this.canvas.style.cursor = 'grabbing';
@@ -84,8 +96,9 @@ class LFOShapeEditor {
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
+      const { cx, cy } = this._cssToCanvas(e);
       if (this.dragging !== null) {
-        const { px, py } = this._canvasToPoint(e.offsetX, e.offsetY);
+        const { px, py } = this._canvasToPoint(cx, cy);
         const p = this.points[this.dragging];
         if (this.dragging === 0) p.x = 0;
         else if (this.dragging === this.points.length - 1) p.x = 1;
@@ -95,7 +108,7 @@ class LFOShapeEditor {
         this.dragging = this.points.indexOf(p);
         this.draw();
       } else {
-        const hit = this._hitTest(e.offsetX, e.offsetY);
+        const hit = this._hitTest(cx, cy);
         this.canvas.style.cursor = hit !== null ? 'grab' : 'crosshair';
       }
     });

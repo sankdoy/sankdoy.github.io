@@ -2,6 +2,20 @@
 
 const synth = new SynthEngine();
 
+// ===================== LOG-FREQUENCY HELPERS =====================
+// Map a 0-1000 slider position to a frequency (log scale)
+function sliderToFreq(pos, fMin, fMax) {
+  return fMin * Math.pow(fMax / fMin, pos / 1000);
+}
+// Map a frequency back to a 0-1000 slider position
+function freqToSlider(freq, fMin, fMax) {
+  return Math.round(1000 * Math.log(freq / fMin) / Math.log(fMax / fMin));
+}
+
+function fmtFreq(v) {
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}kHz` : `${Math.round(v)} Hz`;
+}
+
 // ===================== MIDI PLAYER =====================
 const midiUi = {
   file: document.getElementById('midi-file'),
@@ -840,13 +854,82 @@ function randomPreset() {
   presetSelect.value = '';
 }
 
-// ===================== DOUBLE-CLICK RESET =====================
+// ===================== DOUBLE-CLICK: TYPE EXACT VALUE =====================
 document.getElementById('ej-synth').addEventListener('dblclick', (e) => {
   const el = e.target;
-  if (el.tagName === 'INPUT' && el.type === 'range' && el.dataset.default !== undefined) {
-    el.value = el.dataset.default;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+  if (el.tagName !== 'INPUT' || el.type !== 'range') return;
+
+  e.preventDefault();
+
+  // Create a small text input overlaying the slider
+  const rect = el.getBoundingClientRect();
+  const parentRect = el.offsetParent ? el.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+  const isLogFreq = el.dataset.freqMin !== undefined;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.inputMode = 'decimal';
+  // For log-frequency sliders, show the actual frequency, not the slider position
+  if (isLogFreq) {
+    const fMin = parseFloat(el.dataset.freqMin);
+    const fMax = parseFloat(el.dataset.freqMax);
+    input.value = Math.round(sliderToFreq(parseInt(el.value), fMin, fMax));
+  } else {
+    input.value = el.value;
   }
+  input.style.cssText = `
+    position: absolute;
+    left: ${rect.left - parentRect.left}px;
+    top: ${rect.top - parentRect.top}px;
+    width: ${Math.max(rect.width, 50)}px;
+    height: ${rect.height + 4}px;
+    background: var(--knob, #1a1a2a);
+    border: 1px solid var(--accent, #4a9eff);
+    color: var(--text, #c8c8d4);
+    font-family: inherit;
+    font-size: 11px;
+    text-align: center;
+    border-radius: 3px;
+    z-index: 100;
+    padding: 0 4px;
+    outline: none;
+  `;
+
+  // Ensure the parent has positioning context
+  if (el.offsetParent) {
+    const pos = getComputedStyle(el.offsetParent).position;
+    if (pos === 'static') el.offsetParent.style.position = 'relative';
+  }
+
+  const commit = () => {
+    const v = parseFloat(input.value);
+    if (Number.isFinite(v)) {
+      if (isLogFreq) {
+        // User typed an actual frequency — convert to slider position
+        const fMin = parseFloat(el.dataset.freqMin);
+        const fMax = parseFloat(el.dataset.freqMax);
+        const clamped = Math.max(fMin, Math.min(fMax, v));
+        el.value = freqToSlider(clamped, fMin, fMax);
+      } else {
+        const min = parseFloat(el.min);
+        const max = parseFloat(el.max);
+        el.value = Math.max(min, Math.min(max, v));
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (input.parentNode) input.parentNode.removeChild(input);
+  };
+
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); if (input.parentNode) input.parentNode.removeChild(input); }
+    ev.stopPropagation(); // prevent synth keyboard from firing
+  });
+  input.addEventListener('keyup', (ev) => ev.stopPropagation());
+  input.addEventListener('blur', commit);
+
+  el.offsetParent.appendChild(input);
+  input.focus();
+  input.select();
 });
 
 // ===================== POWER =====================
@@ -1014,10 +1097,11 @@ function refreshUI(p) {
   document.querySelectorAll('.ejs-eq-band').forEach(el => {
     const band = el.dataset.band;
     const cfg = p.eq[band];
-    el.querySelector('.eq-freq').value = cfg.frequency;
-    const freqInt = Math.round(cfg.frequency);
-    const fv = freqInt >= 1000 ? `${(freqInt / 1000).toFixed(1)}kHz` : `${freqInt} Hz`;
-    el.querySelector('.eq-freq-val').textContent = fv;
+    const freqSlider = el.querySelector('.eq-freq');
+    const fMin = parseFloat(freqSlider.dataset.freqMin);
+    const fMax = parseFloat(freqSlider.dataset.freqMax);
+    freqSlider.value = freqToSlider(cfg.frequency, fMin, fMax);
+    el.querySelector('.eq-freq-val').textContent = fmtFreq(cfg.frequency);
     el.querySelector('.eq-q').value = cfg.Q;
     el.querySelector('.eq-q-val').textContent = cfg.Q.toFixed(1);
     const gainEl = el.querySelector('.eq-gain-db');
@@ -1053,8 +1137,8 @@ function refreshUI(p) {
   document.getElementById('distortion-unit').classList.toggle('bypassed', !dist.enabled);
   document.getElementById('distortion-drive').value = dist.drive;
   document.getElementById('distortion-drive-val').textContent = dist.drive.toFixed(2);
-  document.getElementById('distortion-tone').value = dist.tone;
-  document.getElementById('distortion-tone-val').textContent = dist.tone >= 1000 ? `${(dist.tone / 1000).toFixed(1)}kHz` : `${Math.round(dist.tone)} Hz`;
+  document.getElementById('distortion-tone').value = freqToSlider(dist.tone, _distToneMin, _distToneMax);
+  document.getElementById('distortion-tone-val').textContent = fmtFreq(dist.tone);
   document.getElementById('distortion-mix').value = dist.mix;
   document.getElementById('distortion-mix-val').textContent = dist.mix.toFixed(2);
 
@@ -1063,8 +1147,8 @@ function refreshUI(p) {
   document.getElementById('reverb-unit').classList.toggle('bypassed', !rev.enabled);
   document.getElementById('reverb-size').value = rev.size;
   document.getElementById('reverb-size-val').textContent = `${rev.size.toFixed(1)}s`;
-  document.getElementById('reverb-damp').value = rev.damp;
-  document.getElementById('reverb-damp-val').textContent = rev.damp >= 1000 ? `${(rev.damp / 1000).toFixed(1)}kHz` : `${Math.round(rev.damp)} Hz`;
+  document.getElementById('reverb-damp').value = freqToSlider(rev.damp, _dampMin, _dampMax);
+  document.getElementById('reverb-damp-val').textContent = fmtFreq(rev.damp);
   document.getElementById('reverb-mix').value = rev.mix;
   document.getElementById('reverb-mix-val').textContent = rev.mix.toFixed(2);
 
@@ -1218,10 +1302,12 @@ document.querySelectorAll('.ejs-eq-band').forEach(el => {
 
   const freqSlider = el.querySelector('.eq-freq');
   const freqVal = el.querySelector('.eq-freq-val');
+  const fMin = parseFloat(freqSlider.dataset.freqMin);
+  const fMax = parseFloat(freqSlider.dataset.freqMax);
   freqSlider.addEventListener('input', () => {
-    const v = parseInt(freqSlider.value);
-    freqVal.textContent = v >= 1000 ? `${(v / 1000).toFixed(1)}kHz` : `${v} Hz`;
-    synth.setEQ(band, 'frequency', v);
+    const freq = sliderToFreq(parseInt(freqSlider.value), fMin, fMax);
+    freqVal.textContent = fmtFreq(freq);
+    synth.setEQ(band, 'frequency', freq);
   });
 
   const qSlider = el.querySelector('.eq-q');
@@ -1277,11 +1363,12 @@ function drawEQ() {
   eqCtx.lineWidth = 1;
   eqCtx.beginPath(); eqCtx.moveTo(0, midY); eqCtx.lineTo(w, midY); eqCtx.stroke();
 
-  // Build frequency array (log scale)
-  const freqs = [];
-  for (let i = 0; i < w; i++) {
-    freqs.push(xToFreq(i, w));
+  // Build frequency array once (log scale, cached since canvas width is fixed)
+  if (!drawEQ._freqs || drawEQ._freqs.length !== w) {
+    drawEQ._freqs = new Array(w);
+    for (let i = 0; i < w; i++) drawEQ._freqs[i] = xToFreq(i, w);
   }
+  const freqs = drawEQ._freqs;
 
   // Draw per-band curves
   for (const band of ['highpass', 'peak', 'lowpass']) {
@@ -1618,10 +1705,12 @@ distDriveSlider.addEventListener('input', () => {
 
 const distToneSlider = document.getElementById('distortion-tone');
 const distToneVal = document.getElementById('distortion-tone-val');
+const _distToneMin = parseFloat(distToneSlider.dataset.freqMin);
+const _distToneMax = parseFloat(distToneSlider.dataset.freqMax);
 distToneSlider.addEventListener('input', () => {
-  const v = parseFloat(distToneSlider.value);
-  distToneVal.textContent = v >= 1000 ? `${(v / 1000).toFixed(1)}kHz` : `${Math.round(v)} Hz`;
-  synth.setDistortionTone(v);
+  const freq = sliderToFreq(parseInt(distToneSlider.value), _distToneMin, _distToneMax);
+  distToneVal.textContent = fmtFreq(freq);
+  synth.setDistortionTone(freq);
 });
 
 const distMixSlider = document.getElementById('distortion-mix');
@@ -1650,10 +1739,12 @@ reverbSizeSlider.addEventListener('input', () => {
 
 const reverbDampSlider = document.getElementById('reverb-damp');
 const reverbDampVal = document.getElementById('reverb-damp-val');
+const _dampMin = parseFloat(reverbDampSlider.dataset.freqMin);
+const _dampMax = parseFloat(reverbDampSlider.dataset.freqMax);
 reverbDampSlider.addEventListener('input', () => {
-  const v = parseFloat(reverbDampSlider.value);
-  reverbDampVal.textContent = v >= 1000 ? `${(v / 1000).toFixed(1)}kHz` : `${Math.round(v)} Hz`;
-  synth.setReverbDamp(v);
+  const freq = sliderToFreq(parseInt(reverbDampSlider.value), _dampMin, _dampMax);
+  reverbDampVal.textContent = fmtFreq(freq);
+  synth.setReverbDamp(freq);
 });
 
 const reverbMixSlider = document.getElementById('reverb-mix');
@@ -1863,12 +1954,14 @@ function startVisualizers() {
   // Sync modulation to engine on first start
   syncModToEngine();
 
+  let _eqFrameCount = 0;
   (function draw() {
     animId = requestAnimationFrame(draw);
     drawScope();
     drawSpectrum();
     drawMeter();
-    drawEQ();
+    // EQ frequency response is expensive — redraw at ~15 fps instead of 60
+    if (++_eqFrameCount % 4 === 0) drawEQ();
     if (spectrogramViz) spectrogramViz.draw();
   })();
 }
@@ -1883,10 +1976,11 @@ function drawScope() {
   scopeCtx.beginPath(); scopeCtx.moveTo(0, h/2); scopeCtx.lineTo(w, h/2); scopeCtx.stroke();
   scopeCtx.strokeStyle = '#4a9eff'; scopeCtx.lineWidth = 1.5;
   scopeCtx.beginPath();
-  const step = w / data.length;
-  for (let i = 0, x = 0; i < data.length; i++, x += step) {
-    const y = (1 - data[i]) * h / 2;
-    i === 0 ? scopeCtx.moveTo(x, y) : scopeCtx.lineTo(x, y);
+  // Only draw as many points as the canvas is wide (skip surplus samples)
+  const ratio = data.length / w;
+  for (let x = 0; x < w; x++) {
+    const y = (1 - data[Math.floor(x * ratio)]) * h / 2;
+    x === 0 ? scopeCtx.moveTo(x, y) : scopeCtx.lineTo(x, y);
   }
   scopeCtx.stroke();
 }
@@ -1907,6 +2001,15 @@ function drawSpectrum() {
   }
 }
 
+// Pre-build meter gradient (doesn't change between frames)
+const _meterGrad = (() => {
+  const h = document.getElementById('meter-canvas').height;
+  const g = document.getElementById('meter-canvas').getContext('2d').createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, '#3ddc84'); g.addColorStop(0.6, '#3ddc84');
+  g.addColorStop(0.8, '#ffaa33'); g.addColorStop(1, '#ff4d6a');
+  return g;
+})();
+
 function drawMeter() {
   const level = synth.getLevel();
   const w = meterCanvas.width, h = meterCanvas.height;
@@ -1915,10 +2018,7 @@ function drawMeter() {
   const db = level > 0 ? 20 * Math.log10(level) : -100;
   const norm = Math.max(0, Math.min(1, (db + 60) / 60));
   const barH = norm * h;
-  const grad = meterCtx.createLinearGradient(0, h, 0, 0);
-  grad.addColorStop(0, '#3ddc84'); grad.addColorStop(0.6, '#3ddc84');
-  grad.addColorStop(0.8, '#ffaa33'); grad.addColorStop(1, '#ff4d6a');
-  meterCtx.fillStyle = grad;
+  meterCtx.fillStyle = _meterGrad;
   meterCtx.fillRect(6, h - barH, w - 12, barH);
 }
 

@@ -280,18 +280,18 @@
         <div class="ejs-eq-controls">
           <div class="ejs-eq-band" data-band="highpass">
             <span class="ejs-eq-band-label" style="color:#ff6b6b">HP</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="20" max="2000" step="1" value="80" data-default="80"><span class="eq-freq-val">80 Hz</span></div>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="300" data-default="300" data-freq-min="20" data-freq-max="2000"><span class="eq-freq-val">80 Hz</span></div>
             <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
           </div>
           <div class="ejs-eq-band" data-band="peak">
             <span class="ejs-eq-band-label" style="color:#4a9eff">PEAK</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="80" max="16000" step="1" value="1000" data-default="1000"><span class="eq-freq-val">1.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="466" data-default="466" data-freq-min="80" data-freq-max="16000"><span class="eq-freq-val">1.0kHz</span></div>
             <div class="ejs-knob-group"><label>Gain</label><input type="range" class="eq-gain-db" min="-18" max="18" step="0.1" value="0" data-default="0"><span class="eq-gain-val">0.0dB</span></div>
             <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="1" data-default="1"><span class="eq-q-val">1.0</span></div>
           </div>
           <div class="ejs-eq-band" data-band="lowpass">
             <span class="ejs-eq-band-label" style="color:#3ddc84">LP</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="200" max="20000" step="1" value="18000" data-default="18000"><span class="eq-freq-val">18.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="962" data-default="962" data-freq-min="200" data-freq-max="20000"><span class="eq-freq-val">18.0kHz</span></div>
             <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
           </div>
         </div>
@@ -318,7 +318,7 @@
               <span>Distortion</span>
             </div>
             <div class="ejs-knob-group"><label>Drive</label><input type="range" id="distortion-drive" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-drive-val">0.00</span></div>
-            <div class="ejs-knob-group"><label>Tone</label><input type="range" id="distortion-tone" min="200" max="20000" step="1" value="8000" data-default="8000"><span id="distortion-tone-val">8.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Tone</label><input type="range" id="distortion-tone" min="0" max="1000" step="1" value="808" data-default="808" data-freq-min="200" data-freq-max="20000"><span id="distortion-tone-val">8.0kHz</span></div>
             <div class="ejs-knob-group"><label>Mix</label><input type="range" id="distortion-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-mix-val">0.00</span></div>
           </div>
           <div class="ejs-fx" id="reverb-unit">
@@ -327,7 +327,7 @@
               <span>Reverb</span>
             </div>
             <div class="ejs-knob-group"><label>Size</label><input type="range" id="reverb-size" min="0.1" max="6" step="0.1" value="2.5" data-default="2.5"><span id="reverb-size-val">2.5s</span></div>
-            <div class="ejs-knob-group"><label>Damp</label><input type="range" id="reverb-damp" min="500" max="20000" step="10" value="8000" data-default="8000"><span id="reverb-damp-val">8.0kHz</span></div>
+            <div class="ejs-knob-group"><label>Damp</label><input type="range" id="reverb-damp" min="0" max="1000" step="1" value="743" data-default="743" data-freq-min="500" data-freq-max="20000"><span id="reverb-damp-val">8.0kHz</span></div>
             <div class="ejs-knob-group"><label>Mix</label><input type="range" id="reverb-mix" min="0" max="1" step="0.01" value="0.2" data-default="0.2"><span id="reverb-mix-val">0.20</span></div>
           </div>
           <div class="ejs-fx" id="comb-unit">

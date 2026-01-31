@@ -326,12 +326,11 @@ class SynthEngine {
     if (!this.distortionShaper) return;
     const drive = this.distortionConfig.drive;
     const samples = 256;
-    const curve = new Float32Array(samples);
+    if (!this._distCurve) this._distCurve = new Float32Array(samples);
+    const curve = this._distCurve;
     if (drive <= 0) {
-      // Linear (no distortion)
       for (let i = 0; i < samples; i++) {
-        const x = (i * 2) / samples - 1;
-        curve[i] = x;
+        curve[i] = (i * 2) / samples - 1;
       }
     } else {
       const k = drive * 100;
@@ -673,36 +672,51 @@ class SynthEngine {
     return combined;
   }
 
-  // Per-band response for individual curve drawing
+  // Per-band response for individual curve drawing (reuses buffers)
   getBandResponse(band, frequencies) {
     if (!this.running || !this.eqConfigs[band].enabled) return null;
-    const freqArray = new Float32Array(frequencies);
-    const mag = new Float32Array(frequencies.length);
-    const phase = new Float32Array(frequencies.length);
-    this.eqNodes[band].getFrequencyResponse(freqArray, mag, phase);
-    const db = new Float32Array(frequencies.length);
-    for (let i = 0; i < frequencies.length; i++) db[i] = 20 * Math.log10(mag[i]);
+    const n = frequencies.length;
+    if (!this._eqFreqBuf || this._eqFreqBuf.length !== n) {
+      this._eqFreqBuf = new Float32Array(n);
+      this._eqMagBuf = new Float32Array(n);
+      this._eqPhaseBuf = new Float32Array(n);
+      this._eqDbBuf = new Float32Array(n);
+    }
+    // Copy frequencies into typed array (in case plain array is passed)
+    const fa = this._eqFreqBuf;
+    for (let i = 0; i < n; i++) fa[i] = frequencies[i];
+    this.eqNodes[band].getFrequencyResponse(fa, this._eqMagBuf, this._eqPhaseBuf);
+    const db = this._eqDbBuf;
+    for (let i = 0; i < n; i++) db[i] = 20 * Math.log10(this._eqMagBuf[i]);
     return db;
   }
 
   getScopeData() {
     if (!this.analyser) return null;
-    const d = new Float32Array(this.analyser.fftSize);
-    this.analyser.getFloatTimeDomainData(d);
-    return d;
+    if (!this._scopeBuf || this._scopeBuf.length !== this.analyser.fftSize) {
+      this._scopeBuf = new Float32Array(this.analyser.fftSize);
+    }
+    this.analyser.getFloatTimeDomainData(this._scopeBuf);
+    return this._scopeBuf;
   }
 
   getSpectrumData() {
     if (!this.analyserFreq) return null;
-    const d = new Uint8Array(this.analyserFreq.frequencyBinCount);
-    this.analyserFreq.getByteFrequencyData(d);
-    return d;
+    if (!this._specBuf || this._specBuf.length !== this.analyserFreq.frequencyBinCount) {
+      this._specBuf = new Uint8Array(this.analyserFreq.frequencyBinCount);
+    }
+    this.analyserFreq.getByteFrequencyData(this._specBuf);
+    return this._specBuf;
   }
 
   getLevel() {
     if (!this.analyser) return 0;
-    const d = new Float32Array(this.analyser.fftSize);
-    this.analyser.getFloatTimeDomainData(d);
+    // Reuse scope buffer if available, otherwise allocate once
+    if (!this._levelBuf || this._levelBuf.length !== this.analyser.fftSize) {
+      this._levelBuf = new Float32Array(this.analyser.fftSize);
+    }
+    this.analyser.getFloatTimeDomainData(this._levelBuf);
+    const d = this._levelBuf;
     let s = 0;
     for (let i = 0; i < d.length; i++) s += d[i] * d[i];
     return Math.sqrt(s / d.length);
