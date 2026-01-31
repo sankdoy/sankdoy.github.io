@@ -229,6 +229,9 @@ async function ensureSynthAudioOn() {
 function initMidiUi() {
   if (!midiUi.file || !midiUi.play || !midiUi.reset) return;
 
+  // Reset file input value on click so re-selecting the same file still fires 'change'
+  midiUi.file.addEventListener('click', () => { midiUi.file.value = ''; });
+
   midiUi.file.addEventListener('change', async () => {
     const f = midiUi.file.files && midiUi.file.files[0];
     if (!f) return;
@@ -516,58 +519,58 @@ const PRESETS = {
 
   p05: {
     name: 'Glass Pluck',
-    mainGain: 0.42, transpose: 0,
+    mainGain: 0.45, transpose: 0,
     voices: [
       { waveform: 'triangle', overtone: 1, gain: 0.7 },
-      { waveform: 'sine', overtone: 2, gain: 0.25 },
-      { waveform: 'sine', overtone: 3, gain: 0.1 },
-      { waveform: 'triangle', overtone: 4, gain: 0.07 },
+      { waveform: 'sine', overtone: 2, gain: 0.3 },
+      { waveform: 'sine', overtone: 4, gain: 0.12 },
+      { waveform: 'triangle', overtone: 8, gain: 0.05 },
     ],
-    noise: { level: 0.03, enabled: true },
-    envelope: { attack: 0.001, decay: 0.28, sustain: 0, release: 0.18 },
+    noise: { level: 0.04, enabled: true },
+    envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.22 },
     eq: {
-      highpass: { frequency: 120, Q: 0.7, gain: 0, enabled: true },
-      peak: { frequency: 3200, Q: 2.2, gain: 6, enabled: true },
-      lowpass: { frequency: 12000, Q: 0.7, gain: 0, enabled: true },
+      highpass: { frequency: 100, Q: 0.7, gain: 0, enabled: true },
+      peak: { frequency: 3400, Q: 2.5, gain: 5, enabled: true },
+      lowpass: { frequency: 11000, Q: 0.7, gain: 0, enabled: true },
     },
     lfos: [
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
     ],
-    distortion: { drive: 0.35, tone: 6500, mix: 0.2, enabled: true },
-    comb: { delay: 3.2, feedback: 0.55, mix: 0.45, enabled: true },
-    delay: { time: 0.35, feedback: 0.55, mix: 0.35, enabled: true },
-    reverb: { size: 3.2, damp: 12000, mix: 0.45, enabled: true },
-    limiter: { threshold: -7, knee: 8, enabled: true },
+    distortion: { drive: 0.15, tone: 7000, mix: 0.12, enabled: true },
+    comb: { delay: 3.5, feedback: 0.5, mix: 0.35, enabled: true },
+    delay: { time: 0.32, feedback: 0.5, mix: 0.3, enabled: true },
+    reverb: { size: 3.5, damp: 12000, mix: 0.5, enabled: true },
+    limiter: { threshold: -6, knee: 8, enabled: true },
   },
 
   p06: {
     name: 'Metal Bell',
     mainGain: 0.38, transpose: 0,
     voices: [
-      { waveform: 'sine', overtone: 1, gain: 0.55 },
-      { waveform: 'sine', overtone: 2.76, gain: 0.45 },
-      { waveform: 'sine', overtone: 5.41, gain: 0.32 },
-      { waveform: 'sine', overtone: 8.03, gain: 0.22 },
+      { waveform: 'sine', overtone: 1, gain: 0.6 },
+      { waveform: 'sine', overtone: 2.8, gain: 0.4 },
+      { waveform: 'sine', overtone: 5.4, gain: 0.28 },
+      { waveform: 'sine', overtone: 8.1, gain: 0.18 },
     ],
-    noise: { level: 0.01, enabled: true },
-    envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 2.6 },
+    noise: { level: 0.015, enabled: true },
+    envelope: { attack: 0.001, decay: 1.5, sustain: 0, release: 3.0 },
     eq: {
-      highpass: { frequency: 100, Q: 0.7, gain: 0, enabled: true },
-      peak: { frequency: 3600, Q: 2, gain: 6, enabled: true },
-      lowpass: { frequency: 16000, Q: 0.7, gain: 0, enabled: true },
+      highpass: { frequency: 80, Q: 0.7, gain: 0, enabled: true },
+      peak: { frequency: 3200, Q: 1.8, gain: 4, enabled: true },
+      lowpass: { frequency: 14000, Q: 0.7, gain: 0, enabled: true },
     },
     lfos: [
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
     ],
-    distortion: { drive: 0.2, tone: 7000, mix: 0.15, enabled: true },
-    comb: { delay: 4.3, feedback: 0.65, mix: 0.45, enabled: true },
-    delay: { time: 0.18, feedback: 0.28, mix: 0.12, enabled: true },
-    reverb: { size: 2.7, damp: 10000, mix: 0.35, enabled: true },
-    limiter: { threshold: -6, knee: 8, enabled: true },
+    distortion: { drive: 0.1, tone: 8000, mix: 0.1, enabled: true },
+    comb: { delay: 4.5, feedback: 0.6, mix: 0.4, enabled: true },
+    delay: { time: 0.22, feedback: 0.3, mix: 0.15, enabled: true },
+    reverb: { size: 3.5, damp: 11000, mix: 0.45, enabled: true },
+    limiter: { threshold: -5, knee: 8, enabled: true },
   },
 
   p07: {
@@ -575,21 +578,21 @@ const PRESETS = {
     mainGain: 0.33, transpose: 0,
     voices: [
       { waveform: 'sine', overtone: 1, gain: 0.45 },
-      { waveform: 'square', overtone: 2.73, gain: 0.35 },
-      { waveform: 'triangle', overtone: 4.19, gain: 0.3 },
-      { waveform: 'sawtooth', overtone: 6.28, gain: 0.2 },
+      { waveform: 'square', overtone: 3, gain: 0.3 },
+      { waveform: 'triangle', overtone: 5, gain: 0.25 },
+      { waveform: 'sawtooth', overtone: 6, gain: 0.15 },
     ],
-    noise: { level: 0.18, enabled: true },
+    noise: { level: 0.2, enabled: true },
     envelope: { attack: 0.02, decay: 0.4, sustain: 0.25, release: 1.8 },
     eq: {
-      highpass: { frequency: 450, Q: 2.5, gain: 0, enabled: true },
+      highpass: { frequency: 500, Q: 2.5, gain: 0, enabled: true },
       peak: { frequency: 2200, Q: 6, gain: 10, enabled: true },
-      lowpass: { frequency: 5200, Q: 4, gain: 0, enabled: true },
+      lowpass: { frequency: 5000, Q: 4, gain: 0, enabled: true },
     },
     lfos: [
       { enabled: true, waveform: 'sine', rateBeats: 0.5, strength: 0.28 },
-      { enabled: true, waveform: 'triangle', rateBeats: 0.25, strength: 20 },
-      { enabled: true, waveform: 'sine', rateBeats: 0.25, strength: 2600 },
+      { enabled: true, waveform: 'triangle', rateBeats: 0.25, strength: 18 },
+      { enabled: true, waveform: 'sine', rateBeats: 0.25, strength: 2400 },
     ],
     distortion: { drive: 0.75, tone: 2200, mix: 0.55, enabled: true },
     comb: { delay: 7, feedback: 0.7, mix: 0.35, enabled: true },
@@ -656,29 +659,29 @@ const PRESETS = {
 
   p10: {
     name: '808 Sub Heat',
-    mainGain: 0.62, transpose: -24,
+    mainGain: 0.6, transpose: -24,
     voices: [
       { waveform: 'sine', overtone: 1, gain: 1.0 },
-      { waveform: 'triangle', overtone: 1, gain: 0.2 },
-      { waveform: 'sine', overtone: 2, gain: 0.05 },
-      { waveform: 'square', overtone: 0.5, gain: 0.03 },
+      { waveform: 'triangle', overtone: 1, gain: 0.15 },
+      { waveform: 'sine', overtone: 2, gain: 0.06 },
+      { waveform: 'sine', overtone: 3, gain: 0.02 },
     ],
-    noise: { level: 0.02, enabled: true },
-    envelope: { attack: 0.001, decay: 1.4, sustain: 0, release: 0.4 },
+    noise: { level: 0.03, enabled: true },
+    envelope: { attack: 0.001, decay: 1.6, sustain: 0, release: 0.5 },
     eq: {
       highpass: { frequency: 20, Q: 0.7, gain: 0, enabled: true },
-      peak: { frequency: 55, Q: 0.7, gain: 7, enabled: true },
-      lowpass: { frequency: 350, Q: 1.4, gain: 0, enabled: true },
+      peak: { frequency: 60, Q: 0.8, gain: 8, enabled: true },
+      lowpass: { frequency: 400, Q: 1.2, gain: 0, enabled: true },
     },
     lfos: [
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
       { enabled: false, waveform: 'sine', rateBeats: 1, strength: 0 },
     ],
-    distortion: { drive: 0.2, tone: 550, mix: 0.25, enabled: true },
+    distortion: { drive: 0.25, tone: 600, mix: 0.3, enabled: true },
     comb: { delay: 5, feedback: 0.2, mix: 0, enabled: false },
     delay: { time: 0.3, feedback: 0.3, mix: 0, enabled: false },
-    reverb: { size: 0.6, damp: 5000, mix: 0.06, enabled: true },
+    reverb: { size: 0.5, damp: 4000, mix: 0.05, enabled: true },
     limiter: { threshold: -2, knee: 4, enabled: true },
   },
 
@@ -712,28 +715,28 @@ const PRESETS = {
 
   p12: {
     name: 'Glitch Storm (Max)',
-    mainGain: 0.28, transpose: 0,
+    mainGain: 0.25, transpose: 0,
     voices: [
-      { waveform: 'square', overtone: 3.14, gain: 0.55 },
-      { waveform: 'sawtooth', overtone: 7.77, gain: 0.45 },
-      { waveform: 'triangle', overtone: 0.13, gain: 0.65 },
-      { waveform: 'square', overtone: 5.55, gain: 0.35 },
+      { waveform: 'square', overtone: 3, gain: 0.55 },
+      { waveform: 'sawtooth', overtone: 8, gain: 0.4 },
+      { waveform: 'triangle', overtone: 0.5, gain: 0.6 },
+      { waveform: 'square', overtone: 5, gain: 0.35 },
     ],
-    noise: { level: 0.2, enabled: true },
+    noise: { level: 0.22, enabled: true },
     envelope: { attack: 0.001, decay: 0.03, sustain: 0.4, release: 0.02 },
     eq: {
       highpass: { frequency: 600, Q: 8, gain: 0, enabled: true },
-      peak: { frequency: 3500, Q: 15, gain: 18, enabled: true },
-      lowpass: { frequency: 9000, Q: 12, gain: 0, enabled: true },
+      peak: { frequency: 3500, Q: 14, gain: 16, enabled: true },
+      lowpass: { frequency: 9000, Q: 10, gain: 0, enabled: true },
     },
     lfos: [
       { enabled: true, waveform: 'square', rateBeats: 0.0625, strength: 0.8 },
       { enabled: true, waveform: 'sawtooth', rateBeats: 0.03125, strength: 40 },
       { enabled: true, waveform: 'square', rateBeats: 0.03125, strength: 5000 },
     ],
-    distortion: { drive: 0.9, tone: 1400, mix: 0.85, enabled: true },
-    comb: { delay: 1.2, feedback: 0.92, mix: 0.7, enabled: true },
-    delay: { time: 0.05, feedback: 0.9, mix: 0.6, enabled: true },
+    distortion: { drive: 0.85, tone: 1400, mix: 0.8, enabled: true },
+    comb: { delay: 1.2, feedback: 0.88, mix: 0.65, enabled: true },
+    delay: { time: 0.05, feedback: 0.85, mix: 0.55, enabled: true },
     reverb: { size: 0.6, damp: 5000, mix: 0.25, enabled: true },
     limiter: { threshold: -12, knee: 1, enabled: true },
   },
@@ -742,9 +745,9 @@ const PRESETS = {
 // ===================== RANDOMISE =====================
 function randomPreset() {
   const waves = ['sine', 'square', 'triangle', 'sawtooth'];
-  const overtoneRatios = [
-    0.5, 2/3, 0.75, 1, 1.25, 4/3, 1.5, 2, 2.5, 3, 4, 5, 6, 8,
-  ].map((v) => Math.round(v * 10000) / 10000);
+  // Pure harmonic ratios only — integer multiples and sub-octaves so
+  // oscillators always stay in tune with each other.
+  const overtoneRatios = [0.5, 1, 2, 3, 4, 5, 6, 8];
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const rng = (lo, hi) => lo + Math.random() * (hi - lo);
   const roundStep = (v, step) => Math.round(v / step) * step;
@@ -1930,6 +1933,8 @@ async function loadDefaultMidi() {
     const res = await fetch(DEFAULT_MIDI_URL, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${DEFAULT_MIDI_URL}`);
     const buf = await res.arrayBuffer();
+    // If the user already loaded a file while we were fetching, don't overwrite it
+    if (midiState.fileName && midiState.fileName !== DEFAULT_MIDI_LABEL) return;
     const parsed = parseMidiFile(buf);
     midiState.fileName = DEFAULT_MIDI_LABEL;
     midiState.events = parsed.events;
@@ -1941,9 +1946,12 @@ async function loadDefaultMidi() {
     setMidiStatus(`${DEFAULT_MIDI_LABEL} • ${formatTime(parsed.durationSec)}`);
   } catch (err) {
     console.warn("[EJ Synth] Default MIDI failed to load:", err);
-    midiUi.play.disabled = true;
-    midiUi.reset.disabled = true;
-    setMidiStatus("Default MIDI missing");
+    // Only disable if the user hasn't loaded something in the meantime
+    if (!midiState.fileName) {
+      midiUi.play.disabled = true;
+      midiUi.reset.disabled = true;
+      setMidiStatus("Default MIDI missing");
+    }
   }
 }
 

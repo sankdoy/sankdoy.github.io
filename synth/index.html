@@ -47,10 +47,10 @@
               <li><strong>BPM</strong>: tempo used by time-synced LFO rates (1/4, 1/8, etc.).</li>
               <li><strong>GAIN</strong>: main output volume.</li>
               <li><strong>TRANSP</strong>: transpose all notes in semitones (+12 = 1 octave up, -12 = 1 octave down).</li>
-              <li><strong>MIDI</strong>: load a `.mid/.midi` file, then <strong>Play</strong>/<strong>Pause</strong>/<strong>Reset</strong> using the current patch sound.</li>
+              <li><strong>MIDI</strong>: load a <code>.mid</code> file, then <strong>Play</strong>/<strong>Pause</strong>/<strong>Reset</strong> to hear it through the current patch. A demo file is preloaded on startup; pick a new file at any time to replace it.</li>
               <li><strong>Preset</strong>: loads a saved preset from the dropdown.</li>
-              <li><strong>RND</strong>: randomises lots of parameters to help find new sounds.</li>
-              <li><strong>CODE</strong>: opens “patch code” — copy/paste to save/share/load a preset string.</li>
+              <li><strong>RND</strong>: randomises parameters to discover new sounds. Oscillator harmonics stay in tune.</li>
+              <li><strong>CODE</strong>: opens the patch-code modal. Copy the string to save/share a sound, or paste one in and click Load.</li>
             </ul>
           </div>
 
@@ -58,7 +58,7 @@
             <h3>Oscillators</h3>
             <ul>
               <li><strong>Wave</strong>: waveform shape (Sin/Sqr/Tri/Saw).</li>
-              <li><strong>Oct</strong>: pitch multiplier for that oscillator (1.00 = normal, 2.00 = +1 octave, 0.50 = -1 octave, 3.00 = octave+fifth).</li>
+              <li><strong>Oct</strong>: harmonic frequency multiplier. 1.00 = fundamental, 2.00 = +1 octave, 0.50 = -1 octave. Integer values (1, 2, 3, 4 ...) are exact harmonics and always sound in tune. Non-integer values create inharmonic/bell-like tones.</li>
               <li><strong>Vol</strong>: how loud that oscillator is in the mix.</li>
               <li><strong>NOISE</strong>: adds white noise into the voice (useful for bite/air/percussion).</li>
               <li><strong>Noise Level</strong>: noise loudness (only active when NOISE is on).</li>
@@ -119,10 +119,11 @@
             <h3>Output + Keyboard</h3>
             <ul>
               <li><strong>Scope</strong>: waveform over time.</li>
-              <li><strong>Spectrum</strong>: frequency energy (low → high).</li>
+              <li><strong>Spectrum</strong>: frequency energy (low to high).</li>
+              <li><strong>Spectrogram</strong>: scrolling frequency/time waterfall (brighter = louder).</li>
               <li><strong>Meter</strong>: output level.</li>
-              <li><strong>Keys</strong>: A–L / W–P for notes. <strong>Z/X</strong> changes octave.</li>
-              <li><strong>Tip</strong>: double‑click any slider to reset it to its default value.</li>
+              <li><strong>Keys</strong>: A-L / W-P for notes. <strong>Z/X</strong> changes octave.</li>
+              <li><strong>Tip</strong>: double-click any slider to reset it to its default value.</li>
             </ul>
           </div>
         </div>
