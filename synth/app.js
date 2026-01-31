@@ -1968,6 +1968,96 @@ const meterCtx = meterCanvas.getContext('2d');
 let animId = null;
 let spectrogramViz = null;
 
+// ===================== LFO MODULATION UI FEEDBACK =====================
+// Maps targetId → { el: value span element, base: () => base value, fmt: (v) => string }
+const _modUiMap = {
+  'main-gain':   { el: () => document.getElementById('main-gain-val'),       base: () => parseFloat(document.getElementById('main-gain').value),           fmt: v => v.toFixed(2) },
+  'osc1-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="0"] .voice-gain'),  isSlider: true },
+  'osc2-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="1"] .voice-gain'),  isSlider: true },
+  'osc3-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="2"] .voice-gain'),  isSlider: true },
+  'osc4-gain':   { el: () => document.querySelector('.ejs-osc[data-voice="3"] .voice-gain'),  isSlider: true },
+  'eq-hp-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="highpass"] .eq-freq-val'), base: () => synth.eqConfigs?.highpass?.frequency || 80,  fmt: v => fmtFreq(v) },
+  'eq-pk-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="peak"] .eq-freq-val'),    base: () => synth.eqConfigs?.peak?.frequency || 1000,     fmt: v => fmtFreq(v) },
+  'eq-lp-freq':  { el: () => document.querySelector('.ejs-eq-band[data-band="lowpass"] .eq-freq-val'), base: () => synth.eqConfigs?.lowpass?.frequency || 18000,  fmt: v => fmtFreq(v) },
+  'eq-pk-gain':  { el: () => document.querySelector('.ejs-eq-band[data-band="peak"] .eq-gain-val'),    base: () => synth.eqConfigs?.peak?.gain || 0,             fmt: v => `${v.toFixed(1)}dB` },
+  'dist-drive':  { el: () => document.getElementById('distortion-drive-val'),  base: () => synth.distortionConfig?.drive || 0,      fmt: v => v.toFixed(2) },
+  'dist-tone':   { el: () => document.getElementById('distortion-tone-val'),   base: () => synth.distortionConfig?.tone || 8000,    fmt: v => fmtFreq(v) },
+  'delay-time':  { el: () => document.getElementById('delay-time-val'),        base: () => synth.delayConfig?.time || 0.3,          fmt: v => `${Math.round(v * 1000)}ms` },
+  'delay-fdbk':  { el: () => document.getElementById('delay-feedback-val'),    base: () => synth.delayConfig?.feedback || 0.3,      fmt: v => v.toFixed(2) },
+  'reverb-mix':  { el: () => document.getElementById('reverb-mix-val'),        base: () => synth.reverbConfig?.mix || 0.2,          fmt: v => v.toFixed(2) },
+  'comb-delay':  { el: () => document.getElementById('comb-delay-val'),        base: () => synth.combConfig?.delay || 5,            fmt: v => `${v.toFixed(1)}ms` },
+  'comb-fdbk':   { el: () => document.getElementById('comb-feedback-val'),     base: () => synth.combConfig?.feedback || 0.5,       fmt: v => v.toFixed(2) },
+  'noise-level': { el: () => document.getElementById('noise-level-val'),       base: () => synth.noiseConfig?.level || 0,           fmt: v => v.toFixed(2) },
+};
+
+// Simple waveform computation (matches Web Audio oscillator shapes)
+function _lfoWaveValue(waveform, phase) {
+  const p = phase % 1;
+  switch (waveform) {
+    case 'sine':     return Math.sin(2 * Math.PI * p);
+    case 'square':   return p < 0.5 ? 1 : -1;
+    case 'triangle': return 1 - 4 * Math.abs(p - 0.5);
+    case 'sawtooth': return 2 * p - 1;
+    default:         return Math.sin(2 * Math.PI * p);
+  }
+}
+
+// Track which spans are currently showing modulated values so we can restore them
+const _modActiveSpans = new Set();
+
+function updateModulatedValues() {
+  // Collect total modulation offset per targetId
+  const offsets = {};
+  const now = performance.now() / 1000; // seconds
+
+  for (const cfg of modConfigs) {
+    if (!cfg.enabled || cfg.depth <= 0) continue;
+    // Compute LFO frequency in Hz
+    let freqHz;
+    if (cfg.tempoSync) {
+      const bpm = synth.bpm || 120;
+      freqHz = (bpm / 60) / (cfg.rateBeats * 4);
+    } else {
+      freqHz = cfg.rateFree;
+    }
+    const phase = now * freqHz;
+    const lfoVal = _lfoWaveValue(cfg.waveform, phase) * cfg.depth;
+
+    for (const route of cfg.routes) {
+      if (route.targetId.includes('pitch')) continue; // pitch doesn't have a UI value
+      const target = window.MOD_TARGETS?.[route.targetId];
+      if (!target) continue;
+      const offset = lfoVal * route.amount * (target.scale || 1);
+      offsets[route.targetId] = (offsets[route.targetId] || 0) + offset;
+    }
+  }
+
+  // Update UI spans with modulated values
+  const activeNow = new Set();
+  for (const [targetId, offset] of Object.entries(offsets)) {
+    const mapping = _modUiMap[targetId];
+    if (!mapping || mapping.isSlider) continue; // skip slider-only targets
+    const el = mapping.el();
+    if (!el) continue;
+    const base = mapping.base();
+    const target = window.MOD_TARGETS?.[targetId];
+    if (!target) continue;
+    const modulated = Math.max(target.range[0], Math.min(target.range[1], base + offset));
+    el.textContent = mapping.fmt(modulated);
+    el.style.color = 'var(--mod-active, #ff9f43)';
+    activeNow.add(el);
+  }
+
+  // Restore un-modulated spans to default color
+  for (const el of _modActiveSpans) {
+    if (!activeNow.has(el)) {
+      el.style.color = '';
+    }
+  }
+  _modActiveSpans.clear();
+  for (const el of activeNow) _modActiveSpans.add(el);
+}
+
 function startVisualizers() {
   if (animId) return;
   // Initialize spectrogram
@@ -1987,7 +2077,10 @@ function startVisualizers() {
     drawSpectrum();
     drawMeter();
     // EQ frequency response is expensive — redraw at ~15 fps instead of 60
-    if (++_eqFrameCount % 4 === 0) drawEQ();
+    if (++_eqFrameCount % 4 === 0) {
+      drawEQ();
+      updateModulatedValues();
+    }
     if (spectrogramViz) spectrogramViz.draw();
   })();
 }
