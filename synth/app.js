@@ -171,7 +171,10 @@ function parseMidiFile(arrayBuffer) {
   const events = eventsByTick.map((e) => ({ ...e, timeSec: tickToSec(e.tick) }));
   const durationSec = events.length ? events[events.length - 1].timeSec : 0;
 
-  return { format, division, events, durationSec };
+  // Extract initial BPM from first tempo event
+  const initialBpm = Math.round(60000000 / tempoEvents[0].usPerQuarter);
+
+  return { format, division, events, durationSec, bpm: initialBpm };
 }
 
 function stopMidiPlayback({ resetPosition } = {}) {
@@ -260,6 +263,11 @@ function initMidiUi() {
       midiState.nextIndex = 0;
       midiUi.play.disabled = !midiState.events.length;
       midiUi.reset.disabled = !midiState.events.length;
+      // Auto-adjust project tempo to match MIDI file
+      if (parsed.bpm && parsed.bpm > 0) {
+        document.getElementById('bpm').value = parsed.bpm;
+        synth.setBPM(parsed.bpm);
+      }
       setMidiStatus(`${f.name} • ${formatTime(parsed.durationSec)}`);
     } catch (err) {
       console.error(err);
@@ -2043,6 +2051,11 @@ async function loadDefaultMidi() {
     midiState.nextIndex = 0;
     midiUi.play.disabled = !midiState.events.length;
     midiUi.reset.disabled = !midiState.events.length;
+    // Auto-adjust project tempo to match MIDI file
+    if (parsed.bpm && parsed.bpm > 0) {
+      document.getElementById('bpm').value = parsed.bpm;
+      synth.setBPM(parsed.bpm);
+    }
     setMidiStatus(`${DEFAULT_MIDI_LABEL} • ${formatTime(parsed.durationSec)}`);
   } catch (err) {
     console.warn("[EJ Synth] Default MIDI failed to load:", err);
