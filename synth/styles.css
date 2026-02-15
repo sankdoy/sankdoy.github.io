@@ -35,7 +35,7 @@ html, body {
 
 .top-row {
   display: grid;
-  grid-template-columns: 220px 1fr 540px;
+  grid-template-columns: 220px minmax(220px, 1fr) minmax(320px, 540px);
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -50,7 +50,7 @@ html, body {
 
 .main-row {
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) 420px 420px;
+  grid-template-columns: minmax(470px, 1fr) minmax(250px, 310px) minmax(250px, 310px);
   gap: 10px;
   align-items: start;
 }
@@ -364,7 +364,7 @@ select {
 .mod-knobs { display: flex; gap: 12px; align-items: center; }
 
 /* Responsive */
-@media (max-width: 1280px) {
+@media (max-width: 1010px) {
   .top-row { grid-template-columns: 220px 1fr; }
   .viz-spectrum { grid-column: 1 / -1; }
   .main-row { grid-template-columns: 1fr; }
@@ -372,4 +372,3 @@ select {
   .osc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .mod-grid { grid-template-columns: 1fr; }
 }
-
