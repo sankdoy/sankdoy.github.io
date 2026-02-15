@@ -27,8 +27,10 @@ class SynthEngine {
       gainDb: idx === 0 ? -6 : -70,
     }));
     this.currentNote = 60;
-    this._heldNotes = [];
-    this.noteReleaseMs = 90;
+    this.noteReleaseMs = 420;
+    this.maxVoices = 8;
+    this.voices = [];
+    this._nextVoiceId = 1;
 
     // Filters (NOTCH ~= peaking band, plus LP/HP)
     this.filterConfigs = {
@@ -36,6 +38,9 @@ class SynthEngine {
       lowpass: { frequency: 20000, Q: 0.5 },
       highpass: { frequency: 20, Q: 1.0 },
     };
+
+    // Distortion (post-filters)
+    this.distortionConfig = { enabled: false, type: 'soft', drive: 0.5, mix: 0.5 };
 
     // Filter-frequency LFOs (3: notch, lowpass, highpass)
     this.lfoConfigs = [
@@ -50,13 +55,17 @@ class SynthEngine {
     this.pitchCompCents = 0;
 
     // Audio nodes (created in init)
-    this.oscs = [];
-    this.oscGains = [];
-    this.oscMix = null;
-    this.envGain = null;
+    this.voiceMix = null;
     this.hp = null;
     this.notch = null;
     this.lp = null;
+    this.distIn = null;
+    this.distPre = null;
+    this.distShaper = null;
+    this.distPost = null;
+    this.distDry = null;
+    this.distWet = null;
+    this.distOut = null;
     this.ringModIn = null;
     this.ringModCarrier = null;
     this.ringModDry = null;
@@ -67,6 +76,8 @@ class SynthEngine {
     this.mainGain = null;
     this.mainGainDb = 0;
     this.limiter = null;
+    this.outputCeiling = null;
+    this.finalClipper = null;
     this.analyser = null;
     this.analyserFreq = null;
 
@@ -83,13 +94,9 @@ class SynthEngine {
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Mix + envelope
-    this.oscMix = this.ctx.createGain();
-    this.oscMix.gain.value = 1;
-
-    this.envGain = this.ctx.createGain();
-    this.envGain.gain.value = 0;
-    this.oscMix.connect(this.envGain);
+    // Voice sum (poly) -> filters
+    this.voiceMix = this.ctx.createGain();
+    this.voiceMix.gain.value = 0.7;
 
     // Filters: HP -> NOTCH(peaking) -> LP
     this.hp = this.ctx.createBiquadFilter();
@@ -108,27 +115,42 @@ class SynthEngine {
     this.lp.frequency.value = this.filterConfigs.lowpass.frequency;
     this.lp.Q.value = this.filterConfigs.lowpass.Q;
 
-    this.envGain.connect(this.hp);
+    this.voiceMix.connect(this.hp);
     this.hp.connect(this.notch);
     this.notch.connect(this.lp);
 
-    // Ring mod insert (post filters)
+    // Distortion (post filters)
+    this._initDistortion();
+    this.lp.connect(this.distIn);
+
+    // Ring mod insert (post filters + distortion)
     this._initRingMod();
-    this.lp.connect(this.ringModIn);
+    this.distOut.connect(this.ringModIn);
 
     // Main gain (dB)
     this.mainGain = this.ctx.createGain();
     this.mainGain.gain.value = this._dbToAmp(this.mainGainDb);
     this.ringModOut.connect(this.mainGain);
 
-    // Limiter (light safety)
+    // Limiter (safety): compressor + ceiling gain + last-resort clipper.
+    // Goal is to keep peaks under ~-0.1 dBFS to protect speakers.
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -6;
-    this.limiter.knee.value = 10;
-    this.limiter.ratio.value = 20;
-    this.limiter.attack.value = 0.003;
-    this.limiter.release.value = 0.05;
+    this.limiter.threshold.value = -3.0;
+    this.limiter.knee.value = 0.0;
+    this.limiter.ratio.value = 20.0;
+    this.limiter.attack.value = 0.001;
+    this.limiter.release.value = 0.08;
+
+    this.outputCeiling = this.ctx.createGain();
+    this.outputCeiling.gain.value = this._dbToAmp(-0.1);
+
+    this.finalClipper = this.ctx.createWaveShaper();
+    this.finalClipper.oversample = '4x';
+    this.finalClipper.curve = this._makeFinalLimiterCurve();
+
     this.mainGain.connect(this.limiter);
+    this.limiter.connect(this.outputCeiling);
+    this.outputCeiling.connect(this.finalClipper);
 
     // Analysers
     this.analyser = this.ctx.createAnalyser();
@@ -137,30 +159,100 @@ class SynthEngine {
     this.analyserFreq.fftSize = 4096;
     this.analyserFreq.smoothingTimeConstant = 0.8;
 
-    this.limiter.connect(this.analyser);
+    this.finalClipper.connect(this.analyser);
     this.analyser.connect(this.analyserFreq);
     this.analyserFreq.connect(this.ctx.destination);
-
-    // Create harmonic oscillators (running continuously)
-    for (let i = 0; i < 16; i++) {
-      const cfg = this.oscConfigs[i];
-      const osc = this.ctx.createOscillator();
-      osc.type = cfg.waveform;
-      const g = this.ctx.createGain();
-      g.gain.value = this._dbToAmp(cfg.gainDb);
-      osc.connect(g);
-      g.connect(this.oscMix);
-      osc.start();
-      this.oscs.push(osc);
-      this.oscGains.push(g);
-    }
-
-    this._updateOscFrequencies();
 
     // LFOs
     this._setupLFOs();
 
     this.running = true;
+  }
+
+  _makeFinalLimiterCurve() {
+    // Transparent most of the time; gently saturates as a last line of defense.
+    const n = 2048;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      // Soft clip using tanh approximation (fast, stable).
+      const y = Math.tanh(2.3 * x);
+      curve[i] = y;
+    }
+    return curve;
+  }
+
+  _makeDistortionCurve(type, drive) {
+    const n = 2048;
+    const curve = new Float32Array(n);
+    const d = Math.max(0, Math.min(1, Number(drive) || 0));
+    const k = 1 + d * 60;
+    const t = (type || 'soft').toLowerCase();
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      let y;
+      if (t === 'hard') {
+        const a = 0.6 - d * 0.35;
+        y = Math.max(-a, Math.min(a, x));
+        y = y / Math.max(1e-6, a);
+      } else {
+        y = ((1 + k) * x) / (1 + k * Math.abs(x));
+      }
+      curve[i] = y;
+    }
+    return curve;
+  }
+
+  _initDistortion() {
+    this.distIn = this.ctx.createGain();
+    this.distPre = this.ctx.createGain();
+    this.distShaper = this.ctx.createWaveShaper();
+    this.distPost = this.ctx.createGain();
+    this.distDry = this.ctx.createGain();
+    this.distWet = this.ctx.createGain();
+    this.distOut = this.ctx.createGain();
+
+    this.distShaper.oversample = '4x';
+
+    // Routing: in -> dry -> out, and in -> pre -> shaper -> post -> wet -> out
+    this.distIn.connect(this.distDry);
+    this.distDry.connect(this.distOut);
+    this.distIn.connect(this.distPre);
+    this.distPre.connect(this.distShaper);
+    this.distShaper.connect(this.distPost);
+    this.distPost.connect(this.distWet);
+    this.distWet.connect(this.distOut);
+
+    // Init params
+    this._setDistortionType(this.distortionConfig.type);
+    this._setDistortionDrive(this.distortionConfig.drive);
+    this._routeDistortion();
+  }
+
+  _routeDistortion() {
+    if (!this.ctx || !this.distDry || !this.distWet) return;
+    const now = this.ctx.currentTime;
+    const enabled = !!this.distortionConfig.enabled;
+    const mix = Math.max(0, Math.min(1, Number(this.distortionConfig.mix) || 0));
+    const dry = enabled ? (1 - mix) : 1;
+    const wet = enabled ? mix : 0;
+
+    this.distDry.gain.setTargetAtTime(dry, now, 0.02);
+    this.distWet.gain.setTargetAtTime(wet, now, 0.02);
+  }
+
+  _setDistortionType(type) {
+    this.distortionConfig.type = (type || 'soft').toLowerCase();
+    if (!this.distShaper) return;
+    this.distShaper.curve = this._makeDistortionCurve(this.distortionConfig.type, this.distortionConfig.drive);
+  }
+
+  _setDistortionDrive(drive) {
+    const d = Math.max(0, Math.min(1, Number(drive) || 0));
+    this.distortionConfig.drive = d;
+    if (this.distPre) this.distPre.gain.value = 1 + d * 25;
+    if (this.distPost) this.distPost.gain.value = 1 / (1 + d * 7);
+    if (this.distShaper) this.distShaper.curve = this._makeDistortionCurve(this.distortionConfig.type, d);
   }
 
   _initRingMod() {
@@ -195,12 +287,13 @@ class SynthEngine {
 
   _routeRingMod() {
     if (!this.ringModDry || !this.ringModWet) return;
+    const now = this.ctx ? this.ctx.currentTime : 0;
     if (this.ringModConfig.enabled) {
-      this.ringModDry.gain.value = 0;
-      this.ringModWet.gain.value = 1;
+      this.ringModDry.gain.setTargetAtTime(0, now, 0.02);
+      this.ringModWet.gain.setTargetAtTime(1, now, 0.02);
     } else {
-      this.ringModDry.gain.value = 1;
-      this.ringModWet.gain.value = 0;
+      this.ringModDry.gain.setTargetAtTime(1, now, 0.02);
+      this.ringModWet.gain.setTargetAtTime(0, now, 0.02);
     }
   }
 
@@ -215,19 +308,31 @@ class SynthEngine {
     return 440 * Math.pow(2, (note - 69) / 12);
   }
 
-  _updateOscFrequencies() {
-    if (!this.ctx || !this.oscs.length) return;
-    const now = this.ctx.currentTime;
-
+  _voiceBaseFreq(note) {
     const cents = this.ringModConfig.enabled ? (this.pitchCompCents || 0) : 0;
-    const baseFreq = this._midiToFreq(this.currentNote) * Math.pow(2, cents / 1200);
+    return this._midiToFreq(note) * Math.pow(2, cents / 1200);
+  }
+
+  _applyVoiceFrequencies(voice, { when, glide = 0 } = {}) {
+    if (!this.ctx || !voice?.oscs?.length) return;
+    const t = Number.isFinite(when) ? when : this.ctx.currentTime;
+    const baseFreq = this._voiceBaseFreq(voice.note);
     const coeff = Number(this.overtoneCoefficient) || 0;
 
     for (let i = 0; i < 16; i++) {
       const harmonic = this.oscConfigs[i]?.harmonic ?? (i + 1);
       const f = Math.max(0.001, baseFreq * harmonic * coeff);
-      this.oscs[i].frequency.setValueAtTime(f, now);
+      const osc = voice.oscs[i];
+      if (!osc) continue;
+      if (glide > 0) osc.frequency.setTargetAtTime(f, t, glide);
+      else osc.frequency.setValueAtTime(f, t);
     }
+  }
+
+  _updateOscFrequencies() {
+    if (!this.ctx || !this.voices.length) return;
+    const now = this.ctx.currentTime;
+    for (const v of this.voices) this._applyVoiceFrequencies(v, { when: now, glide: 0.015 });
   }
 
   _lfoRateHz(rateBeats) {
@@ -253,8 +358,139 @@ class SynthEngine {
       if (targets[i]) gainNode.connect(targets[i]);
       osc.start();
 
-      this.lfos.push({ osc, gain: gainNode });
+      this.lfos.push({ osc, gain: gainNode, waveTimer: null });
     }
+  }
+
+  _createVoice(note) {
+    const n = Math.max(0, Math.min(127, Number(note) || 0));
+    const now = this.ctx.currentTime;
+
+    const oscMix = this.ctx.createGain();
+    oscMix.gain.value = 1;
+
+    const envGain = this.ctx.createGain();
+    envGain.gain.value = 0;
+
+    oscMix.connect(envGain);
+    envGain.connect(this.voiceMix);
+
+    const voice = {
+      id: this._nextVoiceId++,
+      note: n,
+      startedAt: now,
+      releasing: false,
+      oscMix,
+      envGain,
+      oscs: [],
+      oscGains: [],
+      cleanupTimer: null,
+      cleaned: false,
+    };
+
+    for (let i = 0; i < 16; i++) {
+      const cfg = this.oscConfigs[i];
+      const osc = this.ctx.createOscillator();
+      osc.type = cfg.waveform;
+
+      const g = this.ctx.createGain();
+      g.gain.value = this._dbToAmp(cfg.gainDb);
+
+      osc.connect(g);
+      g.connect(oscMix);
+
+      voice.oscs.push(osc);
+      voice.oscGains.push(g);
+    }
+
+    this._applyVoiceFrequencies(voice, { when: now, glide: 0 });
+    for (const osc of voice.oscs) osc.start(now);
+    this._triggerEnvelope(envGain.gain, now);
+
+    return voice;
+  }
+
+  _chooseVoiceToSteal() {
+    if (!this.voices.length) return null;
+    const releasing = this.voices.find(v => v.releasing);
+    if (releasing) return releasing;
+    return this.voices.reduce((a, b) => (a.startedAt <= b.startedAt ? a : b));
+  }
+
+  _cleanupVoice(voice) {
+    if (!voice || voice.cleaned) return;
+    voice.cleaned = true;
+    if (voice.cleanupTimer) {
+      clearTimeout(voice.cleanupTimer);
+      voice.cleanupTimer = null;
+    }
+
+    const idx = this.voices.findIndex(v => v.id === voice.id);
+    if (idx >= 0) this.voices.splice(idx, 1);
+
+    for (const osc of voice.oscs) {
+      try { osc.disconnect(); } catch (_) {}
+      try { osc.stop(); } catch (_) {}
+    }
+    for (const g of voice.oscGains) {
+      try { g.disconnect(); } catch (_) {}
+    }
+    try { voice.oscMix.disconnect(); } catch (_) {}
+    try { voice.envGain.disconnect(); } catch (_) {}
+  }
+
+  _stopVoice(voice, { fadeMs = 20 } = {}) {
+    if (!this.ctx || !voice || voice.cleaned) return;
+    if (voice.cleanupTimer) {
+      clearTimeout(voice.cleanupTimer);
+      voice.cleanupTimer = null;
+    }
+
+    const idx = this.voices.findIndex(v => v.id === voice.id);
+    if (idx >= 0) this.voices.splice(idx, 1);
+
+    voice.releasing = true;
+
+    const now = this.ctx.currentTime;
+    const g = voice.envGain.gain;
+    const fadeSec = Math.max(0.005, (Number(fadeMs) || 0) / 1000);
+
+    if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(now);
+    else g.cancelScheduledValues(now);
+    g.linearRampToValueAtTime(0, now + fadeSec);
+
+    const stopAt = now + fadeSec + 0.03;
+    for (const osc of voice.oscs) {
+      try { osc.stop(stopAt); } catch (_) {}
+    }
+
+    voice.cleanupTimer = setTimeout(() => this._cleanupVoice(voice), (fadeSec + 0.08) * 1000);
+  }
+
+  _releaseVoice(voice) {
+    if (!this.ctx || !voice || voice.cleaned || voice.releasing) return;
+    voice.releasing = true;
+
+    const now = this.ctx.currentTime;
+    const g = voice.envGain.gain;
+    const releaseSec = Math.max(0.01, (Number(this.noteReleaseMs) || 90) / 1000);
+
+    if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(now);
+    else g.cancelScheduledValues(now);
+    g.linearRampToValueAtTime(0, now + releaseSec);
+
+    const stopAt = now + releaseSec + 0.03;
+    for (const osc of voice.oscs) {
+      try { osc.stop(stopAt); } catch (_) {}
+    }
+
+    voice.cleanupTimer = setTimeout(() => this._cleanupVoice(voice), (releaseSec + 0.1) * 1000);
+  }
+
+  _killAllVoices() {
+    if (!this.voices.length) return;
+    const voices = this.voices.slice();
+    for (const v of voices) this._cleanupVoice(v);
   }
 
   // ========= Public API =========
@@ -266,6 +502,7 @@ class SynthEngine {
       this.running = true;
       return true;
     }
+    this._killAllVoices();
     await this.ctx.suspend();
     this.running = false;
     return false;
@@ -297,6 +534,11 @@ class SynthEngine {
     this.noteDurationMs = next;
   }
 
+  setNoteReleaseMs(ms) {
+    const next = Math.max(5, Math.min(10000, Number(ms) || 0));
+    this.noteReleaseMs = next;
+  }
+
   setEnvelopePoints(points) {
     if (!Array.isArray(points) || points.length < 2) return;
     const cleaned = points
@@ -308,117 +550,110 @@ class SynthEngine {
   }
 
   noteOn(note) {
+    if (!this.ctx || !this.running) return;
     const n = Math.max(0, Math.min(127, Number(note) || 0));
-    // Keep a simple monophonic note stack so releasing returns to last-held pitch.
-    for (let i = this._heldNotes.length - 1; i >= 0; i--) {
-      if (this._heldNotes[i] === n) this._heldNotes.splice(i, 1);
-    }
-    this._heldNotes.push(n);
-
     this.currentNote = n;
-    this._updateOscFrequencies();
-    this._triggerEnvelope();
+
+    while (this.voices.length >= this.maxVoices) {
+      const victim = this._chooseVoiceToSteal();
+      if (!victim) break;
+      this._stopVoice(victim, { fadeMs: 18 });
+    }
+
+    this.voices.push(this._createVoice(n));
   }
 
   noteOff(note) {
+    if (!this.ctx || !this.running) return;
     const n = Math.max(0, Math.min(127, Number(note) || 0));
-    for (let i = this._heldNotes.length - 1; i >= 0; i--) {
-      if (this._heldNotes[i] === n) this._heldNotes.splice(i, 1);
-    }
-
-    if (this._heldNotes.length === 0) {
-      this._releaseEnvelope();
-      return;
-    }
-
-    const last = this._heldNotes[this._heldNotes.length - 1];
-    if (last !== this.currentNote) {
-      this.currentNote = last;
-      this._updateOscFrequencies();
+    for (const v of this.voices) {
+      if (v.note === n) this._releaseVoice(v);
     }
   }
 
   triggerNote(note) {
-    const n = Math.max(0, Math.min(127, Number(note) || 0));
-    this.currentNote = n;
-    this._updateOscFrequencies();
-    this._triggerEnvelope();
+    this.noteOn(note);
   }
 
-  _triggerEnvelope() {
-    if (!this.ctx || !this.envGain) return;
-    const now = this.ctx.currentTime;
-    const g = this.envGain.gain;
+  _triggerEnvelope(gainParam, now = this.ctx?.currentTime) {
+    if (!this.ctx || !gainParam) return;
+    const t0 = Number.isFinite(now) ? now : this.ctx.currentTime;
     const pts = this.envelopePoints || [];
     const domain = Math.max(1, Number(this.noteDurationMs) || 1);
 
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(0, now);
-    for (const p of pts) {
-      const t = now + (Math.max(0, Math.min(1, p.x)) * domain) / 1000;
-      const v = Math.max(0, Math.min(1, p.y));
-      g.linearRampToValueAtTime(v, t);
-    }
-  }
+    gainParam.cancelScheduledValues(t0);
+    gainParam.setValueAtTime(0, t0);
 
-  _releaseEnvelope() {
-    if (!this.ctx || !this.envGain) return;
-    const now = this.ctx.currentTime;
-    const g = this.envGain.gain;
-    const releaseSec = Math.max(0.01, (Number(this.noteReleaseMs) || 90) / 1000);
-    if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(now);
-    else g.cancelScheduledValues(now);
-    g.linearRampToValueAtTime(0, now + releaseSec);
+    // If the last point is (near) zero, treat it as the "release-to-zero" tail.
+    // While a key is held, we sustain at the penultimate point and only apply release on noteOff.
+    const last = pts[pts.length - 1];
+    const hasReleaseTail = pts.length >= 3 && (Number(last?.y) || 0) <= 0.02;
+    const schedulePts = hasReleaseTail ? pts.slice(0, -1) : pts;
+
+    for (const p of schedulePts) {
+      const t = t0 + (Math.max(0, Math.min(1, p.x)) * domain) / 1000;
+      const v = Math.max(0, Math.min(1, p.y));
+      gainParam.linearRampToValueAtTime(v, t);
+    }
   }
 
   setOscWaveform(i, waveform) {
     if (!this.oscConfigs[i]) return;
     this.oscConfigs[i].waveform = waveform;
-    if (this.oscs[i]) this.oscs[i].type = waveform;
+    for (const v of this.voices) {
+      const osc = v.oscs[i];
+      if (osc) osc.type = waveform;
+    }
   }
 
   setOscGainDb(i, db) {
     if (!this.oscConfigs[i]) return;
     this.oscConfigs[i].gainDb = db;
-    if (this.oscGains[i]) this.oscGains[i].gain.value = this._dbToAmp(db);
+    if (!this.ctx) return;
+    const amp = this._dbToAmp(db);
+    const now = this.ctx.currentTime;
+    for (const v of this.voices) {
+      const g = v.oscGains[i];
+      if (g) g.gain.setTargetAtTime(amp, now, 0.01);
+    }
   }
 
   setNotchFrequency(v) {
     const f = Math.max(20, Math.min(20000, Number(v) || 20));
     this.filterConfigs.notch.frequency = f;
-    if (this.notch) this.notch.frequency.value = f;
+    if (this.notch && this.ctx) this.notch.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.015);
   }
   setNotchQ(v) {
     const q = Math.max(0.1, Math.min(30, Number(v) || 0.1));
     this.filterConfigs.notch.Q = q;
-    if (this.notch) this.notch.Q.value = q;
+    if (this.notch && this.ctx) this.notch.Q.setTargetAtTime(q, this.ctx.currentTime, 0.015);
   }
   setNotchGainDb(v) {
     const g = Math.max(-24, Math.min(24, Number(v) || 0));
     this.filterConfigs.notch.gainDb = g;
-    if (this.notch) this.notch.gain.value = g;
+    if (this.notch && this.ctx) this.notch.gain.setTargetAtTime(g, this.ctx.currentTime, 0.015);
   }
 
   setLowpassFrequency(v) {
     const f = Math.max(20, Math.min(20000, Number(v) || 20));
     this.filterConfigs.lowpass.frequency = f;
-    if (this.lp) this.lp.frequency.value = f;
+    if (this.lp && this.ctx) this.lp.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.015);
   }
   setLowpassQ(v) {
     const q = Math.max(0.1, Math.min(30, Number(v) || 0.1));
     this.filterConfigs.lowpass.Q = q;
-    if (this.lp) this.lp.Q.value = q;
+    if (this.lp && this.ctx) this.lp.Q.setTargetAtTime(q, this.ctx.currentTime, 0.015);
   }
 
   setHighpassFrequency(v) {
     const f = Math.max(20, Math.min(20000, Number(v) || 20));
     this.filterConfigs.highpass.frequency = f;
-    if (this.hp) this.hp.frequency.value = f;
+    if (this.hp && this.ctx) this.hp.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.015);
   }
   setHighpassQ(v) {
     const q = Math.max(0.1, Math.min(30, Number(v) || 0.1));
     this.filterConfigs.highpass.Q = q;
-    if (this.hp) this.hp.Q.value = q;
+    if (this.hp && this.ctx) this.hp.Q.setTargetAtTime(q, this.ctx.currentTime, 0.015);
   }
 
   updateLFO(index, prop, value) {
@@ -427,9 +662,25 @@ class SynthEngine {
     cfg[prop] = value;
     if (!this.running || !this.lfos[index]) return;
     const lfo = this.lfos[index];
-    if (prop === 'waveform') lfo.osc.type = value;
-    else if (prop === 'rateBeats') lfo.osc.frequency.value = this._lfoRateHz(value);
-    else if (prop === 'strength' || prop === 'enabled') lfo.gain.gain.value = cfg.enabled ? cfg.strength : 0;
+    const now = this.ctx ? this.ctx.currentTime : 0;
+    if (prop === 'waveform') {
+      // Prevent clicks by fading the modulation depth down/up around the waveform swap.
+      const tgt = cfg.enabled ? (Number(cfg.strength) || 0) : 0;
+      lfo.gain.gain.setTargetAtTime(0, now, 0.01);
+      if (lfo.waveTimer) clearTimeout(lfo.waveTimer);
+      lfo.waveTimer = setTimeout(() => {
+        if (!this.running || !this.lfos[index]) return;
+        const cfgNow = this.lfoConfigs[index];
+        const t = this.ctx ? this.ctx.currentTime : 0;
+        const target = cfgNow.enabled ? (Number(cfgNow.strength) || 0) : 0;
+        try { this.lfos[index].osc.type = cfgNow.waveform; } catch (_) {}
+        this.lfos[index].gain.gain.setTargetAtTime(target, t, 0.02);
+      }, 30);
+    } else if (prop === 'rateBeats') lfo.osc.frequency.value = this._lfoRateHz(value);
+    else if (prop === 'strength' || prop === 'enabled') {
+      const target = cfg.enabled ? (Number(cfg.strength) || 0) : 0;
+      lfo.gain.gain.setTargetAtTime(target, now, 0.02);
+    }
   }
 
   setRingModEnabled(v) {
@@ -451,6 +702,22 @@ class SynthEngine {
     const cents = Math.max(-2400, Math.min(0, Number(v) || 0));
     this.pitchCompCents = cents;
     this._updateOscFrequencies();
+  }
+
+  // ========= Distortion =========
+  setDistortionEnabled(v) {
+    this.distortionConfig.enabled = !!v;
+    this._routeDistortion();
+  }
+  setDistortionType(type) {
+    this._setDistortionType(type);
+  }
+  setDistortionDrive(v) {
+    this._setDistortionDrive(v);
+  }
+  setDistortionMix(v) {
+    this.distortionConfig.mix = Math.max(0, Math.min(1, Number(v) || 0));
+    this._routeDistortion();
   }
 
   // ========= Visualizers =========

@@ -169,8 +169,31 @@ class EnvelopeEditor {
     this.dragIdx = null;
     this.pad = 10;
     this.r = 6;
+    this._resizeCanvas();
     this._bind();
     this.draw();
+
+    this._onResize = () => {
+      this._resizeCanvas();
+      this.draw();
+    };
+    window.addEventListener('resize', this._onResize);
+    if (typeof ResizeObserver === 'function') {
+      this._ro = new ResizeObserver(this._onResize);
+      this._ro.observe(this.canvas);
+    }
+  }
+
+  _resizeCanvas() {
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if (this.canvas.width !== w) this.canvas.width = w;
+    if (this.canvas.height !== h) this.canvas.height = h;
+    this.pad = 10 * dpr;
+    this.r = 6 * dpr;
   }
 
   _cssToCanvas(e) {
@@ -328,6 +351,10 @@ const notchCanvas = document.getElementById('notch-canvas');
 const lpCanvas = document.getElementById('lp-canvas');
 const hpCanvas = document.getElementById('hp-canvas');
 
+// Distortion (post-filter)
+const distToggleBtn = document.getElementById('dist-toggle');
+const distTypeSel = document.getElementById('dist-type');
+
 // ============ Controls ============
 
 // Audio
@@ -369,6 +396,13 @@ const noteDurKnob = initKnob(document.getElementById('note-dur-knob'), {
   onChange: v => synth.setNoteDurationMs(v),
 });
 synth.setNoteDurationMs(noteDurKnob.getValue());
+
+// Release knob
+const noteRelKnob = initKnob(document.getElementById('note-rel-knob'), {
+  format: v => `${Math.round(v)}ms`,
+  onChange: v => synth.setNoteReleaseMs(v),
+});
+synth.setNoteReleaseMs(noteRelKnob.getValue());
 
 // Envelope editor (points are normalized in engine)
 const envCanvas = document.getElementById('env-canvas');
@@ -472,6 +506,34 @@ const modFreqKnob = initKnob(document.getElementById('mod-freq-knob'), {
 synth.setRingModWaveform(modWave.value);
 synth.setRingModFrequency(modFreqKnob.getValue());
 synth.setPitchCompCents(pitchKnob.getValue());
+
+// Distortion
+let distOn = false;
+function setDistOn(on) {
+  distOn = !!on;
+  if (!distToggleBtn) return;
+  distToggleBtn.classList.toggle('on', distOn);
+  distToggleBtn.setAttribute('aria-pressed', distOn ? 'true' : 'false');
+  distToggleBtn.textContent = distOn ? '✓' : '✕';
+  synth.setDistortionEnabled(distOn);
+}
+if (distToggleBtn) distToggleBtn.addEventListener('click', () => setDistOn(!distOn));
+
+const distDriveKnob = initKnob(document.getElementById('dist-drive-knob'), {
+  format: v => `${Math.round(Number(v) * 100)}%`,
+  onChange: v => synth.setDistortionDrive(v),
+});
+const distMixKnob = initKnob(document.getElementById('dist-mix-knob'), {
+  format: v => `${Math.round(Number(v) * 100)}%`,
+  onChange: v => synth.setDistortionMix(v),
+});
+if (distTypeSel) {
+  distTypeSel.addEventListener('change', () => synth.setDistortionType(distTypeSel.value));
+  synth.setDistortionType(distTypeSel.value);
+}
+synth.setDistortionDrive(distDriveKnob.getValue());
+synth.setDistortionMix(distMixKnob.getValue());
+setDistOn(false);
 
 // Filters
 const filterFreqs = logspace(20, 20000, 384);
@@ -620,12 +682,19 @@ const DEFAULT_STATE = (() => {
     mainGainDb: Number(mainGain.value) || 0,
     overtoneCoefficient: overtoneKnob.getValue(),
     noteDurationMs: noteDurKnob.getValue(),
+    noteReleaseMs: noteRelKnob.getValue(),
     envelopePoints: clonePoints(synth.envelopePoints),
     oscConfigs: synth.oscConfigs.map(cfg => ({ waveform: cfg.waveform, gainDb: cfg.gainDb })),
     filters: {
       notch: { ...synth.filterConfigs.notch },
       lowpass: { ...synth.filterConfigs.lowpass },
       highpass: { ...synth.filterConfigs.highpass },
+    },
+    distortion: {
+      enabled: distOn,
+      type: distTypeSel ? distTypeSel.value : 'soft',
+      drive: distDriveKnob.getValue(),
+      mix: distMixKnob.getValue(),
     },
     ringMod: { enabled: modOn, waveform: modWave.value, frequency: modFreqKnob.getValue() },
     pitchCompCents: pitchKnob.getValue(),
@@ -650,6 +719,7 @@ function applyState(state) {
 
   overtoneKnob.setValue(state.overtoneCoefficient);
   noteDurKnob.setValue(state.noteDurationMs);
+  if (Number.isFinite(Number(state.noteReleaseMs))) noteRelKnob.setValue(Number(state.noteReleaseMs));
 
   envEditor.setPoints(clonePoints(state.envelopePoints));
 
@@ -661,6 +731,17 @@ function applyState(state) {
       if (cfg && Number.isFinite(Number(cfg.gainDb))) synth.setOscGainDb(i, Number(cfg.gainDb));
     }
     buildOscGrid();
+  }
+
+  // Distortion
+  if (state.distortion) {
+    if (distTypeSel && state.distortion.type) {
+      distTypeSel.value = state.distortion.type;
+      synth.setDistortionType(state.distortion.type);
+    }
+    if (Number.isFinite(Number(state.distortion.drive))) distDriveKnob.setValue(Number(state.distortion.drive));
+    if (Number.isFinite(Number(state.distortion.mix))) distMixKnob.setValue(Number(state.distortion.mix));
+    setDistOn(!!state.distortion.enabled);
   }
 
   // Ring mod
@@ -713,15 +794,11 @@ function randomiseState() {
   const lfoDivs = Array.from(lfoUnits[0]?.rateSel?.options || []).map(o => o.value).filter(Boolean);
   const safeLfoDivs = lfoDivs.length ? lfoDivs : ['4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16'];
 
-  const envX = [0, randRange(0.18, 0.45), randRange(0.55, 0.85), 1];
-  envX[1] = clamp(envX[1], 0.05, 0.9);
-  envX[2] = clamp(Math.max(envX[2], envX[1] + 0.05), 0.1, 0.95);
-  const envelopePoints = [
-    { x: 0, y: 0 },
-    { x: envX[1], y: randRange(0.35, 1) },
-    { x: envX[2], y: randRange(0.2, 1) },
-    { x: 1, y: randRange(0.25, 1) },
-  ];
+  // Don't touch ADSR / Main Gain.
+  const mainGainDb = Number(mainGain.value) || 0;
+  const noteDurationMs = noteDurKnob.getValue();
+  const noteReleaseMs = noteRelKnob.getValue();
+  const envelopePoints = clonePoints(synth.envelopePoints);
 
   const oscConfigs = Array.from({ length: 16 }, (_, i) => {
     const waveform = pick(waveforms);
@@ -741,9 +818,10 @@ function randomiseState() {
 
   return {
     bpm: randInt(60, 165),
-    mainGainDb: randRange(-18, 0),
+    mainGainDb,
     overtoneCoefficient: clamp(1 + randRange(-0.7, 0.7), 0, 2),
-    noteDurationMs: randInt(1000, 9000),
+    noteDurationMs,
+    noteReleaseMs,
     envelopePoints,
     oscConfigs,
     filters: {
@@ -765,6 +843,12 @@ function randomiseState() {
       enabled: Math.random() < 0.25,
       waveform: pick(waveforms),
       frequency: randLog(0.1, 900),
+    },
+    distortion: {
+      enabled: Math.random() < 0.55,
+      type: Math.random() < 0.8 ? 'soft' : 'hard',
+      drive: randRange(0.05, 0.95),
+      mix: randRange(0.15, 0.9),
     },
     pitchCompCents: -randInt(0, 1200),
     lfos,

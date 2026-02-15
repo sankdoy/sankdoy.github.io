@@ -59,7 +59,12 @@
           <!-- ADSR + Main Gain + Keyboard -->
           <section class="panel panel-adsr" aria-label="Envelope and gain">
             <div class="adsr-head">
-              <div class="adsr-title">ADSR</div>
+              <div class="adsr-left">
+                <div class="adsr-title">ADSR</div>
+                <div class="env-editor">
+                  <canvas id="env-canvas" width="640" height="260" aria-label="Envelope editor"></canvas>
+                </div>
+              </div>
               <div class="adsr-main-gain">
                 <div class="small-label">MAIN GAIN</div>
                 <div class="gain-strip">
@@ -70,17 +75,24 @@
             </div>
 
             <div class="adsr-body">
-              <div class="note-dur">
-                <div class="small-label">Note duration<br>(milliseconds)</div>
-                <div class="knob" id="note-dur-knob"
-                  data-min="1000" data-max="10100" data-step="1" data-scale="linear" data-value="2137">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="note-dur-val">2137</div>
+              <div class="adsr-knobs">
+                <div class="note-dur">
+                  <div class="small-label">Note duration<br>(milliseconds)</div>
+                  <div class="knob" id="note-dur-knob"
+                    data-min="1000" data-max="10100" data-step="1" data-scale="linear" data-value="2137">
+                    <div class="knob-face"><div class="knob-indicator"></div></div>
+                    <div class="knob-value" id="note-dur-val">2137</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="env-editor">
-                <canvas id="env-canvas" width="200" height="100" aria-label="Envelope editor"></canvas>
+                <div class="note-rel">
+                  <div class="small-label">Release<br>(milliseconds)</div>
+                  <div class="knob" id="note-rel-knob"
+                    data-min="20" data-max="3000" data-step="1" data-scale="linear" data-value="420">
+                    <div class="knob-face"><div class="knob-indicator"></div></div>
+                    <div class="knob-value" id="note-rel-val">420ms</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -207,6 +219,37 @@
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Q</div>
               <div class="knob-value" id="hp-q-val">1.00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-block dist-block" aria-label="Post-filter distortion">
+          <div class="filter-title">DISTORTION</div>
+          <div class="dist-controls">
+            <div class="dist-col">
+              <div class="small-label">Toggle</div>
+              <button id="dist-toggle" class="big-toggle" type="button" aria-pressed="false">✕</button>
+            </div>
+            <div class="dist-col">
+              <div class="small-label">Type</div>
+              <select id="dist-type">
+                <option value="soft" selected>Soft</option>
+                <option value="hard">Hard</option>
+              </select>
+              <div class="small-label">Drive</div>
+              <div class="knob" id="dist-drive-knob"
+                data-min="0" data-max="1" data-step="0.01" data-scale="linear" data-value="0.5">
+                <div class="knob-face"><div class="knob-indicator"></div></div>
+                <div class="knob-value" id="dist-drive-val">50%</div>
+              </div>
+            </div>
+            <div class="dist-col">
+              <div class="small-label">Mix</div>
+              <div class="knob" id="dist-mix-knob"
+                data-min="0" data-max="1" data-step="0.01" data-scale="linear" data-value="0.5">
+                <div class="knob-face"><div class="knob-indicator"></div></div>
+                <div class="knob-value" id="dist-mix-val">50%</div>
+              </div>
             </div>
           </div>
         </div>
