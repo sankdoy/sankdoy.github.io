@@ -1,414 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Edward Jarvis Synthesizer</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Synth Moment</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="ej-synth">
-    <!-- Header -->
-    <div class="ejs-header">
-      <span class="ejs-title">EJ SYNTH</span>
-      <button id="power-btn" class="power-off">OFF</button>
-      <div class="ejs-hctl">
-        <label>BPM</label>
-        <input type="number" id="bpm" value="120" min="20" max="300">
+  <div id="max-synth" class="max-synth">
+    <!-- Top visualizers -->
+    <div class="top-row">
+      <div class="viz-panel viz-meter">
+        <canvas id="meter-canvas" width="220" height="128" aria-label="Output meter"></canvas>
       </div>
-      <div class="ejs-hctl">
-        <label>GAIN</label>
-        <input type="range" id="main-gain" min="0" max="1" step="0.01" value="0.7" data-default="0.7">
-        <span id="main-gain-val">0.70</span>
+      <div class="viz-panel viz-scope">
+        <canvas id="scope-canvas" width="432" height="128" aria-label="Oscilloscope"></canvas>
       </div>
-      <div class="ejs-hctl">
-        <label>TRANSP</label>
-        <input type="number" id="transpose" value="0" min="-24" max="24">
-      </div>
-      <div class="ejs-hctl ejs-midi-controls">
-        <label>MIDI</label>
-        <input id="midi-file" class="ejs-midi-file" type="file" accept=".mid,.midi">
-        <button class="ejs-btn" id="midi-play" type="button" disabled>Play</button>
-        <button class="ejs-btn" id="midi-reset" type="button" disabled>Reset</button>
-        <span class="ejs-midi-status" id="midi-status"></span>
+      <div class="viz-panel viz-spectrum">
+        <canvas id="spectrum-canvas" width="540" height="128" aria-label="Spectrum"></canvas>
       </div>
     </div>
-
-    <!-- Cheat sheet -->
-    <details class="ejs-cheatsheet">
-      <summary>CHEAT SHEET (what everything does)</summary>
-      <div class="ejs-cheatsheet-body">
-        <div class="ejs-cheatsheet-grid">
-          <div class="ejs-cheat-block">
-            <h3>Header</h3>
-            <ul>
-              <li><strong>OFF/ON</strong>: starts/stops audio output (Web Audio needs a user click to start).</li>
-              <li><strong>BPM</strong>: tempo used by time-synced LFO rates (1/4, 1/8, etc.).</li>
-              <li><strong>GAIN</strong>: main output volume.</li>
-              <li><strong>TRANSP</strong>: transpose all notes in semitones (+12 = 1 octave up, -12 = 1 octave down).</li>
-              <li><strong>MIDI</strong>: load a <code>.mid</code> file, then <strong>Play</strong>/<strong>Pause</strong>/<strong>Reset</strong> to hear it through the current patch. A demo file is preloaded on startup; pick a new file at any time to replace it.</li>
-              <li><strong>Preset</strong>: loads a saved preset from the dropdown.</li>
-              <li><strong>RND</strong>: randomises parameters to discover new sounds. Oscillator harmonics stay in tune.</li>
-              <li><strong>CODE</strong>: opens the patch-code modal. Copy the string to save/share a sound, or paste one in and click Load.</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Oscillators</h3>
-            <ul>
-              <li><strong>Wave</strong>: waveform shape (Sin/Sqr/Tri/Saw).</li>
-              <li><strong>Oct</strong>: harmonic frequency multiplier. 1.00 = fundamental, 2.00 = +1 octave, 0.50 = -1 octave. Integer values (1, 2, 3, 4 ...) are exact harmonics and always sound in tune. Non-integer values create inharmonic/bell-like tones.</li>
-              <li><strong>Vol</strong>: how loud that oscillator is in the mix.</li>
-              <li><strong>NOISE</strong>: adds white noise into the voice (useful for bite/air/percussion).</li>
-              <li><strong>Noise Level</strong>: noise loudness (only active when NOISE is on).</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Envelope (ADSR)</h3>
-            <ul>
-              <li><strong>A (Attack)</strong>: time to rise from silence to full volume after a note starts.</li>
-              <li><strong>D (Decay)</strong>: time to fall from full volume down to the sustain level.</li>
-              <li><strong>S (Sustain)</strong>: held volume level while the key is held (0–1).</li>
-              <li><strong>R (Release)</strong>: fade-out time after you release the key.</li>
-              <li><strong>Graph</strong>: visual shape of the envelope you’re setting.</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Parametric EQ</h3>
-            <ul>
-              <li><strong>HP</strong> (High‑pass): removes low frequencies below the cutoff.</li>
-              <li><strong>PK</strong> (Peak): boosts/cuts around a chosen frequency.</li>
-              <li><strong>LP</strong> (Low‑pass): removes high frequencies above the cutoff.</li>
-              <li><strong>Freq</strong>: the cutoff/center frequency.</li>
-              <li><strong>Gain</strong> (PK only): boost/cut amount in dB.</li>
-              <li><strong>Q</strong>: resonance/width (higher Q = narrower/more resonant).</li>
-              <li><strong>HP/PK/LP buttons</strong>: toggle each EQ band on/off.</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Modulation (LFOs)</h3>
-            <ul>
-              <li><strong>Toggle</strong>: turns that LFO on/off.</li>
-              <li><strong>Wave</strong>: LFO shape (Sin/Sqr/Tri/Saw/Custom).</li>
-              <li><strong>Mode</strong>: Free (always running), Trigger (restarts on keypress), Envelope (one-shot per note).</li>
-              <li><strong>Sync</strong>: when on, rate is set in musical divisions (BPM-locked). When off, rate is free Hz.</li>
-              <li><strong>Depth</strong>: master modulation depth for this LFO.</li>
-              <li><strong>Shape</strong>: opens a canvas editor. Right-click to add/remove points, drag to move.</li>
-              <li><strong>Routes</strong>: connect the LFO to any parameter. Each route has a target and amount.</li>
-              <li><strong>+ LFO</strong>: add more LFOs (up to 4). <strong>+ Route</strong>: add a new routing destination.</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Effects</h3>
-            <ul>
-              <li><strong>Toggle</strong>: enables/bypasses that effect block.</li>
-              <li><strong>Distortion</strong>: adds harmonics/grit. Drive = amount, Tone = brightness, Mix = dry/wet.</li>
-              <li><strong>Comb Filter</strong>: metallic/chorusy resonances. Delay (ms) sets the “tuning”, Feedback adds ringing, Mix blends.</li>
-              <li><strong>Delay</strong>: echo. Time (s), Feedback repeats, Mix blends.</li>
-              <li><strong>Reverb</strong>: space. Size (s), Damp (Hz) darkens/brightens, Mix blends.</li>
-              <li><strong>Limiter</strong>: safety loudness control. Thresh = how hard it clamps, Knee = softness.</li>
-            </ul>
-          </div>
-
-          <div class="ejs-cheat-block">
-            <h3>Output + Keyboard</h3>
-            <ul>
-              <li><strong>Scope</strong>: waveform over time.</li>
-              <li><strong>Spectrum</strong>: frequency energy (low to high).</li>
-              <li><strong>Spectrogram</strong>: scrolling frequency/time waterfall (brighter = louder).</li>
-              <li><strong>Meter</strong>: output level.</li>
-              <li><strong>Keys</strong>: A-L / W-P for notes. <strong>Z/X</strong> changes octave.</li>
-              <li><strong>Tip</strong>: double-click a slider to reset it to default. Double-click a value label to type an exact number.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </details>
 
     <!-- Main layout -->
-    <div class="ejs-main-grid">
+    <div class="main-row">
+      <!-- Left column -->
+      <div class="left-col">
+        <div class="left-top">
+          <!-- Project BPM / Audio -->
+          <section class="panel panel-project" aria-label="Project controls">
+            <div class="panel-title">PROJECT BPM</div>
+            <div class="project-bpm-row">
+              <input id="bpm" type="number" min="20" max="300" value="120" />
+            </div>
 
-      <!-- Oscillators + Noise -->
-      <div class="ejs-panel" id="osc-section">
-        <div class="ejs-panel-head">
-          <span>OSCILLATORS</span>
+            <button id="audio-btn" class="audio-btn" type="button" aria-pressed="false">AUDIO ON</button>
+
+            <div class="project-row">
+              <div class="small-label">overtone coefficient<br><span class="small-dim">(standard is 1)</span></div>
+              <div class="mini-row">
+                <div class="knob" id="overtone-knob"
+                  data-min="0" data-max="2" data-step="0.01" data-scale="linear" data-value="1">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value" id="overtone-val">1.00</div>
+                </div>
+                <div class="reset-col">
+                  <button id="overtone-reset" class="tiny-btn" type="button">Reset to 1</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ADSR + Main Gain + Keyboard -->
+          <section class="panel panel-adsr" aria-label="Envelope and gain">
+            <div class="adsr-head">
+              <div class="adsr-title">ADSR</div>
+              <div class="adsr-main-gain">
+                <div class="small-label">MAIN GAIN</div>
+                <div class="gain-strip">
+                  <input id="main-gain" class="v-fader" type="range" min="-70" max="6" step="0.1" value="0" />
+                  <div class="fader-readout" id="main-gain-val">0.0 dB</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="adsr-body">
+              <div class="note-dur">
+                <div class="small-label">Note duration<br>(milliseconds)</div>
+                <div class="knob" id="note-dur-knob"
+                  data-min="1000" data-max="10100" data-step="1" data-scale="linear" data-value="2137">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value" id="note-dur-val">2137</div>
+                </div>
+              </div>
+
+              <div class="env-editor">
+                <canvas id="env-canvas" width="200" height="100" aria-label="Envelope editor"></canvas>
+              </div>
+            </div>
+
+            <div class="keyboard-wrap">
+              <div id="keyboard" class="keyboard" aria-label="Keyboard"></div>
+            </div>
+          </section>
         </div>
-        <div class="ejs-osc-grid">
-          <div class="ejs-osc" data-voice="0">
-              <div class="ejs-osc-top">
-                <span class="ejs-osc-label">1</span>
-                <select class="waveform-select">
-                  <option value="sine">Sin</option>
-                  <option value="square">Sqr</option>
-                  <option value="triangle">Tri</option>
-                  <option value="sawtooth">Saw</option>
+
+        <!-- Oscillators -->
+        <section class="panel panel-oscs" aria-label="Oscillators">
+          <div class="panel-title center">OSCILATORS</div>
+          <div class="osc-topbar">
+            <button id="osc-reset-gain" class="tiny-btn" type="button">Reset gain</button>
+            <div class="spacer"></div>
+            <div class="set-all">
+              <button id="osc-set-all" class="tiny-btn" type="button">set all</button>
+              <select id="osc-set-all-wave">
+                <option value="sine">Sine</option>
+                <option value="sawtooth">Sawtooth</option>
+                <option value="triangle">Triangle</option>
+                <option value="square">Square</option>
+              </select>
+            </div>
+          </div>
+          <div id="osc-grid" class="osc-grid"></div>
+          <div class="brand">EDWARD JARVIS<br>SYNTHESIZER</div>
+        </section>
+
+        <!-- Modulation -->
+        <section class="panel panel-mod" aria-label="Modulation">
+          <div class="mod-grid">
+            <div class="mod-block">
+              <div class="small-label">Modulation toggle</div>
+              <button id="mod-toggle" class="big-toggle" type="button" aria-pressed="false">✕</button>
+            </div>
+            <div class="mod-block">
+              <div class="small-label">Modulation Wave</div>
+              <select id="mod-wave">
+                <option value="sine">Sine</option>
+                <option value="sawtooth">Sawtooth</option>
+                <option value="triangle">Triangle</option>
+                <option value="square">Square</option>
+              </select>
+            </div>
+            <div class="mod-block">
+              <div class="small-label">Pitch shift compensation</div>
+              <div class="mod-knobs">
+                <div class="knob" id="pitch-comp-knob"
+                  data-min="-2400" data-max="0" data-step="1" data-scale="linear" data-value="0">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value" id="pitch-comp-val">0 cent</div>
+                  <div class="knob-caption">Transp</div>
+                </div>
+                <div class="knob" id="mod-freq-knob"
+                  data-min="0.1" data-max="5000" data-step="0.01" data-scale="log" data-value="0.1">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value" id="mod-freq-val">0.10 Hz</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Filters column -->
+      <div class="panel panel-filters" aria-label="Filters">
+        <div class="filter-block">
+          <div class="filter-title">NOTCH</div>
+          <canvas id="notch-canvas" width="260" height="130" aria-label="Notch response"></canvas>
+          <div class="filter-knobs">
+            <div class="knob" id="notch-freq-knob"
+              data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="1000">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Frequency</div>
+              <div class="knob-value" id="notch-freq-val">1.0 kHz</div>
+            </div>
+            <div class="knob" id="notch-q-knob"
+              data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="1">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Q</div>
+              <div class="knob-value" id="notch-q-val">1.00</div>
+            </div>
+            <div class="knob" id="notch-gain-knob"
+              data-min="-24" data-max="24" data-step="0.1" data-scale="linear" data-value="0">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Gain</div>
+              <div class="knob-value" id="notch-gain-val">0.0 dB</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <div class="filter-title">LOWPASS</div>
+          <canvas id="lp-canvas" width="260" height="130" aria-label="Lowpass response"></canvas>
+          <div class="filter-knobs">
+            <div class="knob" id="lp-freq-knob"
+              data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="20000">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Frequency</div>
+              <div class="knob-value" id="lp-freq-val">20.0 kHz</div>
+            </div>
+            <div class="knob" id="lp-q-knob"
+              data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="0.5">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Q</div>
+              <div class="knob-value" id="lp-q-val">0.50</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <div class="filter-title">HIGHPASS</div>
+          <canvas id="hp-canvas" width="260" height="130" aria-label="Highpass response"></canvas>
+          <div class="filter-knobs">
+            <div class="knob" id="hp-freq-knob"
+              data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="20">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Frequency</div>
+              <div class="knob-value" id="hp-freq-val">20 Hz</div>
+            </div>
+            <div class="knob" id="hp-q-knob"
+              data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="1">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-caption">Q</div>
+              <div class="knob-value" id="hp-q-val">1.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter LFOs column -->
+      <div class="panel panel-lfos" aria-label="Filter frequency LFOs">
+        <div class="panel-title center">FILTER FREQUENCY LFOS</div>
+        <div class="lfo-list">
+          <div class="lfo-unit" data-lfo="0">
+            <canvas class="lfo-scope" width="260" height="110" aria-label="Notch LFO"></canvas>
+            <div class="lfo-controls">
+              <div class="lfo-col">
+                <div class="small-label">Toggle LFO</div>
+                <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <select class="lfo-rate">
+                  <option value="4/1">4/1</option>
+                  <option value="2/1">2/1</option>
+                  <option value="1/1" selected>1/1</option>
+                  <option value="1/2">1/2</option>
+                  <option value="1/4">1/4</option>
+                  <option value="1/8">1/8</option>
+                  <option value="1/16">1/16</option>
                 </select>
-                <div class="ejs-knob-group">
-                  <label>Oct</label>
-                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
-                  <span class="overtone-val">1.00</span>
-                </div>
-                <div class="ejs-knob-group">
-                  <label>Vol</label>
-                  <input type="range" class="voice-gain" min="0" max="0.5" step="0.01" value="0.25" data-default="0.25"><span class="voice-gain-val">0.25</span>
-                </div>
-              </div>
-            </div>
-          <div class="ejs-osc" data-voice="1">
-              <div class="ejs-osc-top">
-                <span class="ejs-osc-label">2</span>
-                <select class="waveform-select">
-                  <option value="sine">Sin</option>
-                  <option value="square">Sqr</option>
-                  <option value="triangle">Tri</option>
-                  <option value="sawtooth" selected>Saw</option>
+                <div class="small-label">Wavetype</div>
+                <select class="lfo-wave">
+                  <option value="sine">Sine</option>
+                  <option value="sawtooth">Sawtooth</option>
+                  <option value="triangle">Triangle</option>
+                  <option value="square">Square</option>
                 </select>
-                <div class="ejs-knob-group">
-                  <label>Oct</label>
-                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
-                  <span class="overtone-val">1.00</span>
-                </div>
-                <div class="ejs-knob-group">
-                  <label>Vol</label>
-                  <input type="range" class="voice-gain" min="0" max="0.5" step="0.01" value="0.25" data-default="0.25"><span class="voice-gain-val">0.25</span>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Strength</div>
+                <div class="knob lfo-strength"
+                  data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value">0</div>
                 </div>
               </div>
             </div>
-          <div class="ejs-osc" data-voice="2">
-              <div class="ejs-osc-top">
-                <span class="ejs-osc-label">3</span>
-                <select class="waveform-select">
-                  <option value="sine">Sin</option>
-                  <option value="square">Sqr</option>
-                  <option value="triangle" selected>Tri</option>
-                  <option value="sawtooth">Saw</option>
+          </div>
+
+          <div class="lfo-unit" data-lfo="1">
+            <canvas class="lfo-scope" width="260" height="110" aria-label="Lowpass LFO"></canvas>
+            <div class="lfo-controls">
+              <div class="lfo-col">
+                <div class="small-label">Toggle LFO</div>
+                <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <select class="lfo-rate">
+                  <option value="4/1">4/1</option>
+                  <option value="2/1">2/1</option>
+                  <option value="1/1" selected>1/1</option>
+                  <option value="1/2">1/2</option>
+                  <option value="1/4">1/4</option>
+                  <option value="1/8">1/8</option>
+                  <option value="1/16">1/16</option>
                 </select>
-                <div class="ejs-knob-group">
-                  <label>Oct</label>
-                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
-                  <span class="overtone-val">1.00</span>
-                </div>
-                <div class="ejs-knob-group">
-                  <label>Vol</label>
-                  <input type="range" class="voice-gain" min="0" max="0.5" step="0.01" value="0.25" data-default="0.25"><span class="voice-gain-val">0.25</span>
-                </div>
-              </div>
-            </div>
-          <div class="ejs-osc" data-voice="3">
-              <div class="ejs-osc-top">
-                <span class="ejs-osc-label">4</span>
-                <select class="waveform-select">
-                  <option value="sine">Sin</option>
-                  <option value="square" selected>Sqr</option>
-                  <option value="triangle">Tri</option>
-                  <option value="sawtooth">Saw</option>
+                <div class="small-label">Wavetype</div>
+                <select class="lfo-wave">
+                  <option value="sine">Sine</option>
+                  <option value="sawtooth">Sawtooth</option>
+                  <option value="triangle">Triangle</option>
+                  <option value="square">Square</option>
                 </select>
-                <div class="ejs-knob-group">
-                  <label>Oct</label>
-                  <input type="range" class="overtone" min="0.5" max="8" step="0.01" value="1" data-default="1">
-                  <span class="overtone-val">1.00</span>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Strength</div>
+                <div class="knob lfo-strength"
+                  data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value">0</div>
                 </div>
-                <div class="ejs-knob-group">
-                  <label>Vol</label>
-                  <input type="range" class="voice-gain" min="0" max="0.5" step="0.01" value="0.25" data-default="0.25"><span class="voice-gain-val">0.25</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="lfo-unit" data-lfo="2">
+            <canvas class="lfo-scope" width="260" height="110" aria-label="Highpass LFO"></canvas>
+            <div class="lfo-controls">
+              <div class="lfo-col">
+                <div class="small-label">Toggle LFO</div>
+                <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <select class="lfo-rate">
+                  <option value="4/1">4/1</option>
+                  <option value="2/1">2/1</option>
+                  <option value="1/1" selected>1/1</option>
+                  <option value="1/2">1/2</option>
+                  <option value="1/4">1/4</option>
+                  <option value="1/8">1/8</option>
+                  <option value="1/16">1/16</option>
+                </select>
+                <div class="small-label">Wavetype</div>
+                <select class="lfo-wave">
+                  <option value="sine">Sine</option>
+                  <option value="sawtooth">Sawtooth</option>
+                  <option value="triangle">Triangle</option>
+                  <option value="square">Square</option>
+                </select>
+              </div>
+              <div class="lfo-col">
+                <div class="small-label">Strength</div>
+                <div class="knob lfo-strength"
+                  data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-value">0</div>
                 </div>
               </div>
             </div>
-          <!-- Noise -->
-          <div class="ejs-osc ejs-noise-box" id="noise-unit">
-            <div class="ejs-osc-top">
-              <div class="ejs-lfo-head">
-                <label class="ejs-toggle"><input type="checkbox" id="noise-toggle"><span class="ejs-toggle-slider"></span></label>
-                <span class="ejs-osc-label">NOISE</span>
-              </div>
-              <div class="ejs-knob-group">
-                <label>Level</label>
-                <input type="range" id="noise-level" min="0" max="0.5" step="0.01" value="0" data-default="0">
-                <span id="noise-level-val">0.00</span>
-              </div>
-            </div>
           </div>
         </div>
-      </div>
-
-      <!-- ADSR -->
-      <div class="ejs-panel" id="adsr-section">
-        <div class="ejs-panel-head"><span>ENVELOPE</span></div>
-        <div class="ejs-adsr-row">
-          <canvas id="adsr-canvas" width="200" height="80"></canvas>
-          <div class="ejs-adsr-knobs">
-            <div class="ejs-knob-group">
-              <label>A</label>
-              <input type="range" id="attack" min="0.001" max="2" step="0.001" value="0.01" data-default="0.01">
-              <span id="attack-val">10ms</span>
-            </div>
-            <div class="ejs-knob-group">
-              <label>D</label>
-              <input type="range" id="decay" min="0.001" max="2" step="0.001" value="0.1" data-default="0.1">
-              <span id="decay-val">100ms</span>
-            </div>
-            <div class="ejs-knob-group">
-              <label>S</label>
-              <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.7" data-default="0.7">
-              <span id="sustain-val">0.70</span>
-            </div>
-            <div class="ejs-knob-group">
-              <label>R</label>
-              <input type="range" id="release" min="0.001" max="5" step="0.001" value="0.3" data-default="0.3">
-              <span id="release-val">300ms</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Parametric EQ -->
-      <div class="ejs-panel" id="eq-section">
-        <div class="ejs-panel-head">
-          <span>PARAMETRIC EQ</span>
-          <div class="ejs-band-toggles">
-            <button class="ejs-band-btn active" data-band="highpass" style="--band-color:#ff6b6b">HP</button>
-            <button class="ejs-band-btn active" data-band="peak" style="--band-color:#4a9eff">PK</button>
-            <button class="ejs-band-btn active" data-band="lowpass" style="--band-color:#3ddc84">LP</button>
-          </div>
-        </div>
-        <canvas id="eq-canvas" width="700" height="140"></canvas>
-        <div class="ejs-eq-controls">
-          <div class="ejs-eq-band" data-band="highpass">
-            <span class="ejs-eq-band-label" style="color:#ff6b6b">HP</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="300" data-default="300" data-freq-min="20" data-freq-max="2000"><span class="eq-freq-val">80 Hz</span></div>
-            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
-          </div>
-          <div class="ejs-eq-band" data-band="peak">
-            <span class="ejs-eq-band-label" style="color:#4a9eff">PEAK</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="466" data-default="466" data-freq-min="80" data-freq-max="16000"><span class="eq-freq-val">1.0kHz</span></div>
-            <div class="ejs-knob-group"><label>Gain</label><input type="range" class="eq-gain-db" min="-18" max="18" step="0.1" value="0" data-default="0"><span class="eq-gain-val">0.0dB</span></div>
-            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="1" data-default="1"><span class="eq-q-val">1.0</span></div>
-          </div>
-          <div class="ejs-eq-band" data-band="lowpass">
-            <span class="ejs-eq-band-label" style="color:#3ddc84">LP</span>
-            <div class="ejs-knob-group"><label>Freq</label><input type="range" class="eq-freq" min="0" max="1000" step="1" value="962" data-default="962" data-freq-min="200" data-freq-max="20000"><span class="eq-freq-val">18.0kHz</span></div>
-            <div class="ejs-knob-group"><label>Q</label><input type="range" class="eq-q" min="0.1" max="20" step="0.1" value="0.7" data-default="0.7"><span class="eq-q-val">0.7</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODULATION -->
-      <div class="ejs-panel" id="mod-section">
-        <div class="ejs-panel-head">
-          <span>MODULATION</span>
-          <button class="ejs-btn" id="mod-add-lfo">+ LFO</button>
-        </div>
-        <div id="mod-lfo-list">
-          <!-- LFO modules are built dynamically by app.js -->
-        </div>
-      </div>
-
-      <!-- Effects -->
-      <div class="ejs-panel" id="fx-section">
-        <div class="ejs-panel-head"><span>EFFECTS</span></div>
-        <div class="ejs-fx-grid">
-          <div class="ejs-fx" id="distortion-unit">
-            <div class="ejs-fx-head">
-              <label class="ejs-toggle"><input type="checkbox" id="distortion-bypass"><span class="ejs-toggle-slider"></span></label>
-              <span>Distortion</span>
-            </div>
-            <div class="ejs-knob-group"><label>Drive</label><input type="range" id="distortion-drive" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-drive-val">0.00</span></div>
-            <div class="ejs-knob-group"><label>Tone</label><input type="range" id="distortion-tone" min="0" max="1000" step="1" value="808" data-default="808" data-freq-min="200" data-freq-max="20000"><span id="distortion-tone-val">8.0kHz</span></div>
-            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="distortion-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="distortion-mix-val">0.00</span></div>
-          </div>
-          <div class="ejs-fx" id="reverb-unit">
-            <div class="ejs-fx-head">
-              <label class="ejs-toggle"><input type="checkbox" id="reverb-bypass"><span class="ejs-toggle-slider"></span></label>
-              <span>Reverb</span>
-            </div>
-            <div class="ejs-knob-group"><label>Size</label><input type="range" id="reverb-size" min="0.1" max="6" step="0.1" value="2.5" data-default="2.5"><span id="reverb-size-val">2.5s</span></div>
-            <div class="ejs-knob-group"><label>Damp</label><input type="range" id="reverb-damp" min="0" max="1000" step="1" value="743" data-default="743" data-freq-min="500" data-freq-max="20000"><span id="reverb-damp-val">8.0kHz</span></div>
-            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="reverb-mix" min="0" max="1" step="0.01" value="0.2" data-default="0.2"><span id="reverb-mix-val">0.20</span></div>
-          </div>
-          <div class="ejs-fx" id="comb-unit">
-            <div class="ejs-fx-head">
-              <label class="ejs-toggle"><input type="checkbox" id="comb-bypass"><span class="ejs-toggle-slider"></span></label>
-              <span>Comb Filter</span>
-            </div>
-            <div class="ejs-knob-group"><label>Delay</label><input type="range" id="comb-delay" min="0.1" max="50" step="0.1" value="5" data-default="5"><span id="comb-delay-val">5.0ms</span></div>
-            <div class="ejs-knob-group"><label>Fdbk</label><input type="range" id="comb-feedback" min="0" max="0.99" step="0.01" value="0.5" data-default="0.5"><span id="comb-feedback-val">0.50</span></div>
-            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="comb-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="comb-mix-val">0.00</span></div>
-          </div>
-          <div class="ejs-fx" id="delay-unit">
-            <div class="ejs-fx-head">
-              <label class="ejs-toggle"><input type="checkbox" id="delay-bypass"><span class="ejs-toggle-slider"></span></label>
-              <span>Delay</span>
-            </div>
-            <div class="ejs-knob-group"><label>Time</label><input type="range" id="delay-time" min="0.01" max="2" step="0.01" value="0.3" data-default="0.3"><span id="delay-time-val">300ms</span></div>
-            <div class="ejs-knob-group"><label>Fdbk</label><input type="range" id="delay-feedback" min="0" max="0.95" step="0.01" value="0.3" data-default="0.3"><span id="delay-feedback-val">0.30</span></div>
-            <div class="ejs-knob-group"><label>Mix</label><input type="range" id="delay-mix" min="0" max="1" step="0.01" value="0" data-default="0"><span id="delay-mix-val">0.00</span></div>
-          </div>
-          <div class="ejs-fx" id="limiter-unit">
-            <div class="ejs-fx-head">
-              <label class="ejs-toggle"><input type="checkbox" id="limiter-bypass" checked><span class="ejs-toggle-slider"></span></label>
-              <span>Limiter</span>
-            </div>
-            <div class="ejs-knob-group"><label>Thresh</label><input type="range" id="limiter-threshold" min="-30" max="0" step="0.1" value="-3" data-default="-3"><span id="limiter-threshold-val">-3.0dB</span></div>
-            <div class="ejs-knob-group"><label>Knee</label><input type="range" id="limiter-knee" min="0" max="40" step="0.1" value="10" data-default="10"><span id="limiter-knee-val">10.0</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Output: Visualizers -->
-      <div class="ejs-panel" id="viz-section">
-        <div class="ejs-panel-head"><span>OUTPUT</span></div>
-        <div class="ejs-viz-row">
-          <div class="ejs-viz-unit">
-            <canvas id="scope-canvas" width="400" height="80"></canvas>
-          </div>
-          <div class="ejs-viz-unit">
-            <canvas id="spectrum-canvas" width="400" height="80"></canvas>
-          </div>
-          <div class="ejs-viz-meter">
-            <canvas id="meter-canvas" width="40" height="80"></canvas>
-          </div>
-        </div>
-        <div class="ejs-viz-row ejs-viz-row-full">
-          <div class="ejs-viz-unit">
-            <canvas id="spectrogram-canvas" width="800" height="120"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Keyboard -->
-    <div class="ejs-keyboard-wrap">
-      <span class="ejs-kb-hint">Keys: A-L / W-P | Z/X oct</span>
-      <div id="keyboard"></div>
-    </div>
-
-    <!-- Patch code modal -->
-    <div class="ejs-modal-backdrop" id="patch-modal-backdrop" hidden>
-      <div class="ejs-modal" role="dialog" aria-modal="true" aria-labelledby="patch-modal-title">
-        <div class="ejs-modal-head">
-          <span id="patch-modal-title">PATCH CODE</span>
-          <button class="ejs-btn" id="patch-close-btn" type="button">Close</button>
-        </div>
-        <textarea id="patch-code" spellcheck="false" rows="4" placeholder="Paste a patch code here..."></textarea>
-        <div class="ejs-modal-actions">
-          <span class="ejs-modal-status" id="patch-status"></span>
-          <div class="ejs-modal-actions-right">
-            <button class="ejs-btn" id="patch-copy-btn" type="button">Copy</button>
-            <button class="ejs-btn ejs-btn-primary" id="patch-load-btn" type="button">Load</button>
-          </div>
-        </div>
-        <div class="ejs-modal-hint">Tip: this is a shareable “sound string” for saving/recalling patches.</div>
       </div>
     </div>
   </div>
 
-  <script src="modulation.js"></script>
   <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+
