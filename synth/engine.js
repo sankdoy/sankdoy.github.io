@@ -27,6 +27,8 @@ class SynthEngine {
       gainDb: idx === 0 ? -6 : -70,
     }));
     this.currentNote = 60;
+    this._heldNotes = [];
+    this.noteReleaseMs = 90;
 
     // Filters (NOTCH ~= peaking band, plus LP/HP)
     this.filterConfigs = {
@@ -305,6 +307,37 @@ class SynthEngine {
     this.envelopePoints = cleaned;
   }
 
+  noteOn(note) {
+    const n = Math.max(0, Math.min(127, Number(note) || 0));
+    // Keep a simple monophonic note stack so releasing returns to last-held pitch.
+    for (let i = this._heldNotes.length - 1; i >= 0; i--) {
+      if (this._heldNotes[i] === n) this._heldNotes.splice(i, 1);
+    }
+    this._heldNotes.push(n);
+
+    this.currentNote = n;
+    this._updateOscFrequencies();
+    this._triggerEnvelope();
+  }
+
+  noteOff(note) {
+    const n = Math.max(0, Math.min(127, Number(note) || 0));
+    for (let i = this._heldNotes.length - 1; i >= 0; i--) {
+      if (this._heldNotes[i] === n) this._heldNotes.splice(i, 1);
+    }
+
+    if (this._heldNotes.length === 0) {
+      this._releaseEnvelope();
+      return;
+    }
+
+    const last = this._heldNotes[this._heldNotes.length - 1];
+    if (last !== this.currentNote) {
+      this.currentNote = last;
+      this._updateOscFrequencies();
+    }
+  }
+
   triggerNote(note) {
     const n = Math.max(0, Math.min(127, Number(note) || 0));
     this.currentNote = n;
@@ -326,6 +359,16 @@ class SynthEngine {
       const v = Math.max(0, Math.min(1, p.y));
       g.linearRampToValueAtTime(v, t);
     }
+  }
+
+  _releaseEnvelope() {
+    if (!this.ctx || !this.envGain) return;
+    const now = this.ctx.currentTime;
+    const g = this.envGain.gain;
+    const releaseSec = Math.max(0.01, (Number(this.noteReleaseMs) || 90) / 1000);
+    if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(now);
+    else g.cancelScheduledValues(now);
+    g.linearRampToValueAtTime(0, now + releaseSec);
   }
 
   setOscWaveform(i, waveform) {

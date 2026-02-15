@@ -60,6 +60,26 @@ function logspace(min, max, n) {
   return out;
 }
 
+function randRange(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function randInt(min, max) {
+  const a = Math.ceil(min);
+  const b = Math.floor(max);
+  return Math.floor(randRange(a, b + 1));
+}
+
+function randLog(min, max) {
+  const a = Math.log(Math.max(1e-6, min));
+  const b = Math.log(Math.max(Math.exp(a) * 1.000001, max));
+  return Math.exp(a + (b - a) * Math.random());
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 // ============ Knob Component ============
 function initKnob(knobEl, { format, onChange }) {
   const min = Number(knobEl.dataset.min);
@@ -223,6 +243,18 @@ class EnvelopeEditor {
     this.canvas.addEventListener('pointercancel', end);
   }
 
+  setPoints(points, { emit = true } = {}) {
+    if (!Array.isArray(points) || points.length < 2) return;
+    const cleaned = points
+      .map(p => ({ x: clamp(Number(p.x) || 0, 0, 1), y: clamp(Number(p.y) || 0, 0, 1) }))
+      .sort((a, b) => a.x - b.x);
+    cleaned[0].x = 0;
+    cleaned[cleaned.length - 1].x = 1;
+    this.points = cleaned;
+    this.draw();
+    if (emit) this.onChange(this.points.map(p => ({ ...p })));
+  }
+
   draw() {
     const ctx = this.ctx;
     const w = this.canvas.width;
@@ -273,6 +305,8 @@ class EnvelopeEditor {
 
 // ============ DOM ============
 const audioBtn = document.getElementById('audio-btn');
+const randomiseBtn = document.getElementById('randomise-btn');
+const resetBtn = document.getElementById('reset-btn');
 const bpmInput = document.getElementById('bpm');
 const mainGain = document.getElementById('main-gain');
 const mainGainVal = document.getElementById('main-gain-val');
@@ -564,11 +598,181 @@ const lfoUnits = Array.from(document.querySelectorAll('.lfo-unit')).map((unit) =
   return {
     index,
     scope,
+    toggle,
+    rateSel,
+    waveSel,
+    strengthKnob,
+    setEnabled,
     get enabled() { return enabled; },
     get waveform() { return waveSel.value; },
     get rateBeats() { return divisionToBeats(rateSel.value); },
   };
 });
+
+// ============ Randomise / Reset ============
+function clonePoints(pts) {
+  return (pts || []).map(p => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+}
+
+const DEFAULT_STATE = (() => {
+  return {
+    bpm: Number(bpmInput.value) || 120,
+    mainGainDb: Number(mainGain.value) || 0,
+    overtoneCoefficient: overtoneKnob.getValue(),
+    noteDurationMs: noteDurKnob.getValue(),
+    envelopePoints: clonePoints(synth.envelopePoints),
+    oscConfigs: synth.oscConfigs.map(cfg => ({ waveform: cfg.waveform, gainDb: cfg.gainDb })),
+    filters: {
+      notch: { ...synth.filterConfigs.notch },
+      lowpass: { ...synth.filterConfigs.lowpass },
+      highpass: { ...synth.filterConfigs.highpass },
+    },
+    ringMod: { enabled: modOn, waveform: modWave.value, frequency: modFreqKnob.getValue() },
+    pitchCompCents: pitchKnob.getValue(),
+    lfos: lfoUnits.map(u => ({
+      enabled: u.enabled,
+      rateDiv: u.rateSel.value,
+      waveform: u.waveSel.value,
+      strength: u.strengthKnob.getValue(),
+    })),
+  };
+})();
+
+function applyState(state) {
+  if (!state) return;
+
+  bpmInput.value = String(state.bpm);
+  synth.setBPM(Number(state.bpm));
+
+  mainGain.value = String(state.mainGainDb);
+  synth.setMainGainDb(Number(state.mainGainDb));
+  mainGainVal.textContent = fmtDb(Number(state.mainGainDb));
+
+  overtoneKnob.setValue(state.overtoneCoefficient);
+  noteDurKnob.setValue(state.noteDurationMs);
+
+  envEditor.setPoints(clonePoints(state.envelopePoints));
+
+  // Oscillators
+  if (Array.isArray(state.oscConfigs) && state.oscConfigs.length === 16) {
+    for (let i = 0; i < 16; i++) {
+      const cfg = state.oscConfigs[i];
+      if (cfg && cfg.waveform) synth.setOscWaveform(i, cfg.waveform);
+      if (cfg && Number.isFinite(Number(cfg.gainDb))) synth.setOscGainDb(i, Number(cfg.gainDb));
+    }
+    buildOscGrid();
+  }
+
+  // Ring mod
+  setModOn(!!state.ringMod?.enabled);
+  if (state.ringMod?.waveform) {
+    modWave.value = state.ringMod.waveform;
+    synth.setRingModWaveform(state.ringMod.waveform);
+  }
+  if (Number.isFinite(Number(state.ringMod?.frequency))) modFreqKnob.setValue(Number(state.ringMod.frequency));
+  if (Number.isFinite(Number(state.pitchCompCents))) pitchKnob.setValue(Number(state.pitchCompCents));
+
+  // Filters
+  if (state.filters?.notch) {
+    notchFreqKnob.setValue(state.filters.notch.frequency);
+    notchQKnob.setValue(state.filters.notch.Q);
+    notchGainKnob.setValue(state.filters.notch.gainDb);
+  }
+  if (state.filters?.lowpass) {
+    lpFreqKnob.setValue(state.filters.lowpass.frequency);
+    lpQKnob.setValue(state.filters.lowpass.Q);
+  }
+  if (state.filters?.highpass) {
+    hpFreqKnob.setValue(state.filters.highpass.frequency);
+    hpQKnob.setValue(state.filters.highpass.Q);
+  }
+
+  // LFOs
+  if (Array.isArray(state.lfos) && state.lfos.length === lfoUnits.length) {
+    for (let i = 0; i < lfoUnits.length; i++) {
+      const u = lfoUnits[i];
+      const cfg = state.lfos[i] || {};
+      if (cfg.waveform) {
+        u.waveSel.value = cfg.waveform;
+        synth.updateLFO(u.index, 'waveform', cfg.waveform);
+      }
+      if (cfg.rateDiv) {
+        u.rateSel.value = cfg.rateDiv;
+        synth.updateLFO(u.index, 'rateBeats', divisionToBeats(cfg.rateDiv));
+      }
+      if (Number.isFinite(Number(cfg.strength))) u.strengthKnob.setValue(Number(cfg.strength));
+      u.setEnabled(!!cfg.enabled);
+    }
+  }
+
+  postHeight();
+}
+
+function randomiseState() {
+  const waveforms = ['sine', 'triangle', 'sawtooth', 'square'];
+  const lfoDivs = Array.from(lfoUnits[0]?.rateSel?.options || []).map(o => o.value).filter(Boolean);
+  const safeLfoDivs = lfoDivs.length ? lfoDivs : ['4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16'];
+
+  const envX = [0, randRange(0.18, 0.45), randRange(0.55, 0.85), 1];
+  envX[1] = clamp(envX[1], 0.05, 0.9);
+  envX[2] = clamp(Math.max(envX[2], envX[1] + 0.05), 0.1, 0.95);
+  const envelopePoints = [
+    { x: 0, y: 0 },
+    { x: envX[1], y: randRange(0.35, 1) },
+    { x: envX[2], y: randRange(0.2, 1) },
+    { x: 1, y: randRange(0.25, 1) },
+  ];
+
+  const oscConfigs = Array.from({ length: 16 }, (_, i) => {
+    const waveform = pick(waveforms);
+    const gainDb = i === 0
+      ? randRange(-18, -6)
+      : (Math.random() < 0.33 ? randRange(-45, -12) : randRange(-70, -50));
+    return { waveform, gainDb };
+  });
+
+  const lfos = lfoUnits.map(() => {
+    const enabled = Math.random() < 0.35;
+    const rateDiv = pick(safeLfoDivs);
+    const waveform = pick(waveforms);
+    const strength = enabled ? randInt(80, 1600) : 0;
+    return { enabled, rateDiv, waveform, strength };
+  });
+
+  return {
+    bpm: randInt(60, 165),
+    mainGainDb: randRange(-18, 0),
+    overtoneCoefficient: clamp(1 + randRange(-0.7, 0.7), 0, 2),
+    noteDurationMs: randInt(1000, 9000),
+    envelopePoints,
+    oscConfigs,
+    filters: {
+      notch: {
+        frequency: randLog(80, 12000),
+        Q: randRange(0.2, 10),
+        gainDb: randRange(-12, 12),
+      },
+      lowpass: {
+        frequency: randLog(180, 20000),
+        Q: randRange(0.2, 10),
+      },
+      highpass: {
+        frequency: randLog(20, 800),
+        Q: randRange(0.2, 10),
+      },
+    },
+    ringMod: {
+      enabled: Math.random() < 0.25,
+      waveform: pick(waveforms),
+      frequency: randLog(0.1, 900),
+    },
+    pitchCompCents: -randInt(0, 1200),
+    lfos,
+  };
+}
+
+if (randomiseBtn) randomiseBtn.addEventListener('click', () => applyState(randomiseState()));
+if (resetBtn) resetBtn.addEventListener('click', () => applyState(DEFAULT_STATE));
 
 // ============ Keyboard ============
 const keyboardEl = document.getElementById('keyboard');
@@ -584,22 +788,19 @@ function buildKeyboard() {
       const isBlack = BLACK_KEYS.has(i);
       key.className = `key ${isBlack ? 'key-black' : 'key-white'}`;
       key.dataset.note = String(note);
-      key.addEventListener('mousedown', (e) => {
+      const end = (e) => {
+        try { key.releasePointerCapture(e.pointerId); } catch (_) {}
+        synth.noteOff(note);
+        key.classList.remove('active');
+      };
+      key.addEventListener('pointerdown', (e) => {
         e.preventDefault();
-        synth.triggerNote(note);
+        try { key.setPointerCapture(e.pointerId); } catch (_) {}
+        synth.noteOn(note);
         key.classList.add('active');
       });
-      key.addEventListener('mouseup', () => key.classList.remove('active'));
-      key.addEventListener('mouseleave', () => key.classList.remove('active'));
-      key.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        synth.triggerNote(note);
-        key.classList.add('active');
-      }, { passive: false });
-      key.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        key.classList.remove('active');
-      }, { passive: false });
+      key.addEventListener('pointerup', end);
+      key.addEventListener('pointercancel', end);
       keyboardEl.appendChild(key);
     }
   }
@@ -611,7 +812,7 @@ const KEY_MAP = {
   'f': 5, 't': 6, 'g': 7, 'y': 8, 'h': 9, 'u': 10, 'j': 11,
   'k': 12, 'o': 13, 'l': 14, 'p': 15, ';': 16,
 };
-const heldKeys = new Set();
+const heldKeys = new Map(); // key -> MIDI note
 
 function isTypingTarget(el) {
   if (!el) return false;
@@ -636,11 +837,11 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   e.stopPropagation();
 
-  if (heldKeys.has(k)) return;
-  heldKeys.add(k);
-
   const note = baseOctave * 12 + KEY_MAP[k];
-  synth.triggerNote(note);
+  if (heldKeys.has(k)) return;
+  heldKeys.set(k, note);
+
+  synth.noteOn(note);
   const keyEl = keyboardEl.querySelector(`[data-note="${note}"]`);
   if (keyEl) keyEl.classList.add('active');
 }, true);
@@ -651,13 +852,20 @@ document.addEventListener('keyup', (e) => {
 
   const k = e.key.toLowerCase();
   if (!(k in KEY_MAP)) return;
-  if (!heldKeys.has(k)) return;
+  const note = heldKeys.get(k);
+  if (!Number.isFinite(note)) return;
   heldKeys.delete(k);
 
-  const note = baseOctave * 12 + KEY_MAP[k];
+  synth.noteOff(note);
   const keyEl = keyboardEl.querySelector(`[data-note="${note}"]`);
   if (keyEl) keyEl.classList.remove('active');
 }, true);
+
+window.addEventListener('blur', () => {
+  for (const note of heldKeys.values()) synth.noteOff(note);
+  heldKeys.clear();
+  keyboardEl.querySelectorAll('.key.active').forEach((el) => el.classList.remove('active'));
+});
 
 // ============ Visualizers ============
 const meterCtx = meterCanvas.getContext('2d');
