@@ -206,45 +206,50 @@ input[type="number"] {
 }
 
 /* ADSR */
-.adsr-head {
+.adsrCard {
   display: grid;
-  grid-template-columns: 1fr 110px;
-  gap: 10px;
-  align-items: start;
-  padding: 10px 12px 6px;
+  grid-template-columns: 1fr 64px;
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  padding: 10px 12px 12px;
 }
-.adsr-left {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 8px;
-}
-.adsr-title {
+.adsrHeader { grid-column: 1 / -1; }
+.adsrTitle {
   font-weight: 900;
   font-size: 15px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.adsr-main-gain { text-align: right; }
-.gain-strip { display: grid; gap: 6px; justify-items: end; margin-top: 6px; }
-.fader-readout { font-size: 12px; font-variant-numeric: tabular-nums; }
-
-.adsr-body {
-  padding: 8px 12px 10px;
-}
-.adsr-knobs {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  align-items: start;
-}
-.note-dur, .note-rel { display: grid; gap: 8px; align-content: start; }
-.env-editor canvas {
+.adsrGraph { grid-column: 1; height: 140px; min-width: 260px; }
+.adsrGraph canvas {
   width: 100%;
-  height: 190px;
-  background: rgba(0,0,0,0.35);
+  height: 100%;
+  background: var(--canvas-bg);
   border: 1px solid rgba(255,255,255,0.18);
   display: block;
+  touch-action: none;
+  cursor: default;
 }
+.adsrGain {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+}
+.adsrGain .small-label { text-align: center; }
+.fader-readout { font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.adsrKnobs {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.adsrKnob { display: grid; gap: 8px; align-content: start; justify-items: center; }
 
 /* Faders */
 .v-fader {
@@ -252,7 +257,15 @@ input[type="number"] {
   -webkit-appearance: slider-vertical;
   width: 28px;
   height: 190px;
+  accent-color: var(--trace);
 }
+.adsrGain .v-fader {
+  height: 100%;
+  min-height: 210px;
+}
+
+/* Test note panel */
+.panel-testnote { background: var(--project); padding-bottom: 10px; }
 
 /* Keyboard */
 .keyboard-wrap { padding: 0 12px 6px; }

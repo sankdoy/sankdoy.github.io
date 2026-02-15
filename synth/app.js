@@ -161,12 +161,19 @@ function initKnob(knobEl, { format, onChange }) {
 
 // ============ Envelope Editor ============
 class EnvelopeEditor {
-  constructor(canvas, points, onChange) {
+  constructor(canvas, adsr, onChange) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.points = (points || []).map(p => ({ x: p.x, y: p.y }));
+    this.adsr = {
+      attackMs: 40,
+      decayMs: 180,
+      sustain: 0.62,
+      releaseMs: 420,
+      holdMs: 240,
+      ...(adsr || {}),
+    };
     this.onChange = onChange || (() => {});
-    this.dragIdx = null;
+    this.dragKey = null;
     this.pad = 10;
     this.r = 6;
     this._resizeCanvas();
@@ -182,6 +189,23 @@ class EnvelopeEditor {
       this._ro = new ResizeObserver(this._onResize);
       this._ro.observe(this.canvas);
     }
+  }
+
+  getADSR() {
+    return { ...this.adsr };
+  }
+
+  setADSR(next, { emit = true } = {}) {
+    if (!next) return;
+    const prev = this.adsr;
+    const attackMs = clamp(Number(next.attackMs ?? prev.attackMs) || 0, 0, 5000);
+    const decayMs = clamp(Number(next.decayMs ?? prev.decayMs) || 0, 0, 8000);
+    const sustain = clamp(Number(next.sustain ?? prev.sustain) || 0, 0, 1);
+    const releaseMs = clamp(Number(next.releaseMs ?? prev.releaseMs) || 0, 5, 6000);
+    const holdMs = clamp(Number(next.holdMs ?? prev.holdMs) || 0, 0, 5000);
+    this.adsr = { attackMs, decayMs, sustain, releaseMs, holdMs };
+    this.draw();
+    if (emit) this.onChange(this.getADSR());
   }
 
   _resizeCanvas() {
@@ -204,28 +228,53 @@ class EnvelopeEditor {
     };
   }
 
-  _ptToCanvas(p) {
+  _totalMs() {
+    const a = Number(this.adsr.attackMs) || 0;
+    const d = Number(this.adsr.decayMs) || 0;
+    const h = Number(this.adsr.holdMs) || 0;
+    const r = Number(this.adsr.releaseMs) || 0;
+    return Math.max(1, a + d + h + r);
+  }
+
+  _tToCanvas(tMs, level) {
     const w = this.canvas.width;
     const h = this.canvas.height;
-    const x = this.pad + p.x * (w - this.pad * 2);
-    const y = this.pad + (1 - p.y) * (h - this.pad * 2);
+    const total = this._totalMs();
+    const x = this.pad + (clamp(Number(tMs) || 0, 0, total) / total) * (w - this.pad * 2);
+    const y = this.pad + (1 - clamp(Number(level) || 0, 0, 1)) * (h - this.pad * 2);
     return { x, y };
   }
 
-  _canvasToPt(cx, cy) {
+  _canvasToTL(cx, cy) {
     const w = this.canvas.width;
     const h = this.canvas.height;
-    const x = clamp((cx - this.pad) / (w - this.pad * 2), 0, 1);
-    const y = clamp(1 - (cy - this.pad) / (h - this.pad * 2), 0, 1);
-    return { x, y };
+    const total = this._totalMs();
+    const t = clamp((cx - this.pad) / (w - this.pad * 2), 0, 1) * total;
+    const level = clamp(1 - (cy - this.pad) / (h - this.pad * 2), 0, 1);
+    return { t, level };
+  }
+
+  _handles() {
+    const a = Number(this.adsr.attackMs) || 0;
+    const d = Number(this.adsr.decayMs) || 0;
+    const h = Number(this.adsr.holdMs) || 0;
+    const r = Number(this.adsr.releaseMs) || 0;
+    const s = clamp(Number(this.adsr.sustain) || 0, 0, 1);
+    return [
+      { key: 'A', t: a, level: 1 },
+      { key: 'D', t: a + d, level: s },
+      { key: 'S', t: a + d + h, level: s },
+      { key: 'R', t: a + d + h + r, level: 0 },
+    ];
   }
 
   _hitTest(cx, cy) {
-    for (let i = 0; i < this.points.length; i++) {
-      const p = this._ptToCanvas(this.points[i]);
-      const dx = cx - p.x;
-      const dy = cy - p.y;
-      if (dx * dx + dy * dy <= (this.r + 4) ** 2) return i;
+    const handles = this._handles();
+    for (let i = 0; i < handles.length; i++) {
+      const hp = this._tToCanvas(handles[i].t, handles[i].level);
+      const dx = cx - hp.x;
+      const dy = cy - hp.y;
+      if (dx * dx + dy * dy <= (this.r + 6) ** 2) return handles[i].key;
     }
     return null;
   }
@@ -233,49 +282,52 @@ class EnvelopeEditor {
   _bind() {
     this.canvas.addEventListener('pointerdown', (e) => {
       const { cx, cy } = this._cssToCanvas(e);
-      const hit = this._hitTest(cx, cy);
-      if (hit === null) return;
-      this.dragIdx = hit;
+      const key = this._hitTest(cx, cy);
+      if (!key) return;
+      this.dragKey = key;
       try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
       e.preventDefault();
     });
 
     this.canvas.addEventListener('pointermove', (e) => {
-      if (this.dragIdx === null) return;
+      if (!this.dragKey) return;
       const { cx, cy } = this._cssToCanvas(e);
-      const p = this._canvasToPt(cx, cy);
+      const { t, level } = this._canvasToTL(cx, cy);
 
-      const idx = this.dragIdx;
-      const pts = this.points;
-      const left = idx === 0 ? 0 : pts[idx - 1].x + 0.001;
-      const right = idx === pts.length - 1 ? 1 : pts[idx + 1].x - 0.001;
+      const key = this.dragKey;
+      const prev = this.adsr;
+      const a = Number(prev.attackMs) || 0;
+      const d = Number(prev.decayMs) || 0;
+      const h = Number(prev.holdMs) || 0;
+      const s = clamp(Number(prev.sustain) || 0, 0, 1);
 
-      pts[idx].x = idx === 0 ? 0 : idx === pts.length - 1 ? 1 : clamp(p.x, left, right);
-      pts[idx].y = clamp(p.y, 0, 1);
+      if (key === 'A') {
+        const nextA = clamp(t, 0, 5000);
+        this.setADSR({ ...prev, attackMs: nextA }, { emit: false });
+      } else if (key === 'D') {
+        const end = Math.max(a, t);
+        const nextD = clamp(end - a, 0, 8000);
+        this.setADSR({ ...prev, decayMs: nextD }, { emit: false });
+      } else if (key === 'S') {
+        this.setADSR({ ...prev, sustain: clamp(level, 0, 1) }, { emit: false });
+      } else if (key === 'R') {
+        const start = a + d + h;
+        const end = Math.max(start + 5, t);
+        const nextR = clamp(end - start, 5, 6000);
+        this.setADSR({ ...prev, releaseMs: nextR, sustain: s }, { emit: false });
+      }
       this.draw();
       e.preventDefault();
     });
 
     const end = (e) => {
-      if (this.dragIdx === null) return;
-      this.dragIdx = null;
+      if (!this.dragKey) return;
+      this.dragKey = null;
       try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-      this.onChange(this.points.map(p => ({ ...p })));
+      this.onChange(this.getADSR());
     };
     this.canvas.addEventListener('pointerup', end);
     this.canvas.addEventListener('pointercancel', end);
-  }
-
-  setPoints(points, { emit = true } = {}) {
-    if (!Array.isArray(points) || points.length < 2) return;
-    const cleaned = points
-      .map(p => ({ x: clamp(Number(p.x) || 0, 0, 1), y: clamp(Number(p.y) || 0, 0, 1) }))
-      .sort((a, b) => a.x - b.x);
-    cleaned[0].x = 0;
-    cleaned[cleaned.length - 1].x = 1;
-    this.points = cleaned;
-    this.draw();
-    if (emit) this.onChange(this.points.map(p => ({ ...p })));
   }
 
   draw() {
@@ -284,12 +336,14 @@ class EnvelopeEditor {
     const h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
 
+    const css = getComputedStyle(document.documentElement);
+
     // Background
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillStyle = (css.getPropertyValue('--canvas-bg') || '#0d0d0d').trim();
     ctx.fillRect(0, 0, w, h);
 
     // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.strokeStyle = (css.getPropertyValue('--canvas-grid') || 'rgba(255,255,255,0.10)').trim();
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     for (const frac of [0.25, 0.5, 0.75]) {
@@ -299,29 +353,60 @@ class EnvelopeEditor {
       ctx.lineTo(x, h);
       ctx.stroke();
     }
+    for (const frac of [0.25, 0.5, 0.75]) {
+      const y = this.pad + frac * (h - this.pad * 2);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
 
     // Curve
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.strokeStyle = (css.getPropertyValue('--trace') || 'rgba(255,255,255,0.92)').trim();
     ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let i = 0; i < this.points.length; i++) {
-      const p = this._ptToCanvas(this.points[i]);
+    const a = Number(this.adsr.attackMs) || 0;
+    const d = Number(this.adsr.decayMs) || 0;
+    const hold = Number(this.adsr.holdMs) || 0;
+    const rls = Number(this.adsr.releaseMs) || 0;
+    const s = clamp(Number(this.adsr.sustain) || 0, 0, 1);
+    const pts = [
+      { t: 0, level: 0 },
+      { t: a, level: 1 },
+      { t: a + d, level: s },
+      { t: a + d + hold, level: s },
+      { t: a + d + hold + rls, level: 0 },
+    ];
+    for (let i = 0; i < pts.length; i++) {
+      const p = this._tToCanvas(pts[i].t, pts[i].level);
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
 
-    // Points
-    for (let i = 0; i < this.points.length; i++) {
-      const p = this._ptToCanvas(this.points[i]);
-      ctx.fillStyle = i === this.dragIdx ? '#fff' : '#e9e9e9';
+    // Handles
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    ctx.font = `${Math.round(12 * dpr)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const hnd of this._handles()) {
+      const p = this._tToCanvas(hnd.t, hnd.level);
+      const active = this.dragKey === hnd.key;
+
+      ctx.fillStyle = active ? '#fff' : '#e9e9e9';
       ctx.beginPath();
       ctx.arc(p.x, p.y, this.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.55)';
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      ctx.fillStyle = 'rgba(0,0,0,0.70)';
+      ctx.fillText(hnd.key, p.x, p.y - (this.r + 10 * dpr));
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillText(hnd.key, p.x, p.y - (this.r + 10 * dpr));
     }
   }
 }
@@ -390,23 +475,102 @@ const overtoneKnob = initKnob(document.getElementById('overtone-knob'), {
 });
 document.getElementById('overtone-reset').addEventListener('click', () => overtoneKnob.setValue(1));
 
-// Note duration knob
-const noteDurKnob = initKnob(document.getElementById('note-dur-knob'), {
-  format: v => String(Math.round(v)),
-  onChange: v => synth.setNoteDurationMs(v),
-});
-synth.setNoteDurationMs(noteDurKnob.getValue());
-
-// Release knob
-const noteRelKnob = initKnob(document.getElementById('note-rel-knob'), {
-  format: v => `${Math.round(v)}ms`,
-  onChange: v => synth.setNoteReleaseMs(v),
-});
-synth.setNoteReleaseMs(noteRelKnob.getValue());
-
-// Envelope editor (points are normalized in engine)
+// ADSR knobs + envelope editor
 const envCanvas = document.getElementById('env-canvas');
-const envEditor = new EnvelopeEditor(envCanvas, synth.envelopePoints, (pts) => synth.setEnvelopePoints(pts));
+const attackKnob = initKnob(document.getElementById('adsr-attack-knob'), {
+  format: v => `${Math.round(v)}ms`,
+  onChange: () => syncADSRFromUI(),
+});
+const decayKnob = initKnob(document.getElementById('adsr-decay-knob'), {
+  format: v => `${Math.round(v)}ms`,
+  onChange: () => syncADSRFromUI(),
+});
+const sustainKnob = initKnob(document.getElementById('adsr-sustain-knob'), {
+  format: v => `${Math.round(v)}%`,
+  onChange: () => syncADSRFromUI(),
+});
+const releaseKnob = initKnob(document.getElementById('adsr-release-knob'), {
+  format: v => `${Math.round(v)}ms`,
+  onChange: () => syncADSRFromUI(),
+});
+
+function deriveInitialADSR() {
+  const pts = Array.isArray(synth.envelopePoints) ? synth.envelopePoints : [];
+  const domain = Math.max(100, Number(synth.noteDurationMs) || 100);
+  const releaseMs = clamp(Number(synth.noteReleaseMs) || 420, 5, 6000);
+  if (pts.length < 2) return { attackMs: 40, decayMs: 180, sustain: 0.62, releaseMs, holdMs: 240 };
+
+  let peak = pts[0];
+  for (const p of pts) {
+    if ((Number(p.y) || 0) >= (Number(peak.y) || 0)) peak = p;
+  }
+  const last = pts[pts.length - 1];
+  const attackMs = clamp((Number(peak.x) || 0) * domain, 0, 5000);
+  const endMs = clamp((Number(last.x) || 1) * domain, 0, 20000);
+  const decayMs = clamp(Math.max(0, endMs - attackMs), 0, 8000);
+  const sustain = clamp(Number(last.y) || 0.62, 0, 1);
+  return { attackMs, decayMs, sustain, releaseMs, holdMs: 240 };
+}
+
+let adsrState = deriveInitialADSR();
+let envEditor = null;
+
+function applyADSRToEngine(state) {
+  const attackMs = clamp(Number(state.attackMs) || 0, 0, 5000);
+  const decayMs = clamp(Number(state.decayMs) || 0, 0, 8000);
+  const sustain = clamp(Number(state.sustain) || 0, 0, 1);
+  const releaseMs = clamp(Number(state.releaseMs) || 0, 5, 6000);
+  const holdMs = clamp(Number(state.holdMs) || 0, 0, 5000);
+
+  const totalMsRaw = attackMs + decayMs + holdMs + releaseMs;
+  const totalMs = clamp(totalMsRaw, 100, 20000);
+  const t1 = clamp(attackMs, 0, totalMs);
+  const t2 = clamp(attackMs + decayMs, 0, totalMs);
+  const t3 = clamp(attackMs + decayMs + holdMs, 0, totalMs);
+
+  synth.setNoteDurationMs(totalMs);
+  synth.setNoteReleaseMs(releaseMs);
+  synth.setEnvelopePoints([
+    { x: 0, y: 0 },
+    { x: t1 / totalMs, y: 1 },
+    { x: t2 / totalMs, y: sustain },
+    { x: t3 / totalMs, y: sustain },
+    { x: 1, y: 0 },
+  ]);
+}
+
+function setADSR(next, { updateUI = true, updateGraph = true, updateEngine = true } = {}) {
+  adsrState = {
+    ...adsrState,
+    ...next,
+  };
+  // Clamp via editor logic for consistency
+  if (updateGraph && envEditor) envEditor.setADSR(adsrState, { emit: false });
+  if (updateEngine) applyADSRToEngine(adsrState);
+
+  if (updateUI) {
+    attackKnob.setValue(clamp(Number(adsrState.attackMs) || 0, 0, 5000), { emit: false });
+    decayKnob.setValue(clamp(Number(adsrState.decayMs) || 0, 0, 8000), { emit: false });
+    sustainKnob.setValue(clamp((Number(adsrState.sustain) || 0) * 100, 0, 100), { emit: false });
+    releaseKnob.setValue(clamp(Number(adsrState.releaseMs) || 0, 5, 6000), { emit: false });
+  }
+}
+
+function syncADSRFromUI() {
+  setADSR({
+    attackMs: attackKnob.getValue(),
+    decayMs: decayKnob.getValue(),
+    sustain: sustainKnob.getValue() / 100,
+    releaseMs: releaseKnob.getValue(),
+  }, { updateUI: false, updateGraph: true, updateEngine: true });
+}
+
+envEditor = new EnvelopeEditor(envCanvas, adsrState, (next) => {
+  setADSR(next, { updateUI: true, updateGraph: false, updateEngine: true });
+});
+
+// Sync initial ADSR into UI + engine + graph
+setADSR(adsrState, { updateUI: true, updateGraph: true, updateEngine: true });
 
 // Oscillator grid
 function buildOscGrid() {
@@ -681,9 +845,7 @@ const DEFAULT_STATE = (() => {
     bpm: Number(bpmInput.value) || 120,
     mainGainDb: Number(mainGain.value) || 0,
     overtoneCoefficient: overtoneKnob.getValue(),
-    noteDurationMs: noteDurKnob.getValue(),
-    noteReleaseMs: noteRelKnob.getValue(),
-    envelopePoints: clonePoints(synth.envelopePoints),
+    adsr: { ...adsrState },
     oscConfigs: synth.oscConfigs.map(cfg => ({ waveform: cfg.waveform, gainDb: cfg.gainDb })),
     filters: {
       notch: { ...synth.filterConfigs.notch },
@@ -718,10 +880,7 @@ function applyState(state) {
   mainGainVal.textContent = fmtDb(Number(state.mainGainDb));
 
   overtoneKnob.setValue(state.overtoneCoefficient);
-  noteDurKnob.setValue(state.noteDurationMs);
-  if (Number.isFinite(Number(state.noteReleaseMs))) noteRelKnob.setValue(Number(state.noteReleaseMs));
-
-  envEditor.setPoints(clonePoints(state.envelopePoints));
+  if (state.adsr) setADSR(state.adsr, { updateUI: true, updateGraph: true, updateEngine: true });
 
   // Oscillators
   if (Array.isArray(state.oscConfigs) && state.oscConfigs.length === 16) {
@@ -796,9 +955,7 @@ function randomiseState() {
 
   // Don't touch ADSR / Main Gain.
   const mainGainDb = Number(mainGain.value) || 0;
-  const noteDurationMs = noteDurKnob.getValue();
-  const noteReleaseMs = noteRelKnob.getValue();
-  const envelopePoints = clonePoints(synth.envelopePoints);
+  const adsr = { ...adsrState };
 
   const oscConfigs = Array.from({ length: 16 }, (_, i) => {
     const waveform = pick(waveforms);
@@ -820,9 +977,7 @@ function randomiseState() {
     bpm: randInt(60, 165),
     mainGainDb,
     overtoneCoefficient: clamp(1 + randRange(-0.7, 0.7), 0, 2),
-    noteDurationMs,
-    noteReleaseMs,
-    envelopePoints,
+    adsr,
     oscConfigs,
     filters: {
       notch: {
