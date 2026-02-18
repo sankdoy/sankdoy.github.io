@@ -9,25 +9,28 @@
 </head>
 <body>
   <div id="max-synth" class="max-synth">
+
     <!-- Top visualizers -->
     <div class="top-row">
       <div class="viz-panel viz-meter">
-        <canvas id="meter-canvas" width="220" height="128" aria-label="Output meter"></canvas>
+        <canvas id="meter-canvas" width="180" height="100" aria-label="Output meter"></canvas>
       </div>
       <div class="viz-panel viz-scope">
-        <canvas id="scope-canvas" width="432" height="128" aria-label="Oscilloscope"></canvas>
+        <canvas id="scope-canvas" width="400" height="100" aria-label="Oscilloscope"></canvas>
       </div>
       <div class="viz-panel viz-spectrum">
-        <canvas id="spectrum-canvas" width="540" height="128" aria-label="Spectrum"></canvas>
+        <canvas id="spectrum-canvas" width="500" height="100" aria-label="Spectrum"></canvas>
       </div>
     </div>
 
     <!-- Main layout -->
     <div class="main-row">
-      <!-- Left column -->
+
+      <!-- ===== Left column ===== -->
       <div class="left-col">
         <div class="left-top">
-          <!-- Project BPM / Audio -->
+
+          <!-- Project / global controls -->
           <section class="panel panel-project" aria-label="Project controls">
             <div class="panel-title">PROJECT BPM</div>
             <div class="project-bpm-row">
@@ -36,15 +39,15 @@
 
             <button id="audio-btn" class="audio-btn" type="button" aria-pressed="false">AUDIO ON</button>
 
-            <div class="project-actions" aria-label="Patch actions">
+            <div class="project-actions">
               <button id="randomise-btn" class="tiny-btn" type="button">Randomise</button>
-              <button id="reset-btn" class="tiny-btn" type="button">Reset</button>
+              <button id="reset-btn"     class="tiny-btn" type="button">Reset</button>
             </div>
 
             <div class="project-row">
               <div class="small-label">overtone coefficient<br><span class="small-dim">(standard is 1)</span></div>
               <div class="mini-row">
-                <div class="knob" id="overtone-knob"
+                <div class="knob" id="overtone-knob" title="Double-click to reset"
                   data-min="0" data-max="2" data-step="0.01" data-scale="linear" data-value="1">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value" id="overtone-val">1.00</div>
@@ -56,10 +59,15 @@
             </div>
           </section>
 
-          <!-- ADSR + Main Gain -->
+          <!-- ADSR + Main Gain + Keyboard -->
           <section class="panel panel-adsr adsrCard" aria-label="Envelope and gain">
+
             <div class="adsrHeader">
               <div class="adsrTitle">ADSR</div>
+              <div class="note-dur-row">
+                <span class="note-dur-label">Note duration (ms)</span>
+                <span class="note-dur-val" id="note-duration-val">—</span>
+              </div>
             </div>
 
             <div class="adsrGraph">
@@ -68,14 +76,15 @@
 
             <div class="adsrGain" aria-label="Main gain">
               <div class="small-label">MAIN<br>GAIN</div>
-              <input id="main-gain" class="v-fader" type="range" min="-70" max="6" step="0.1" value="0" />
+              <input id="main-gain" class="v-fader" type="range" min="-70" max="6" step="0.1" value="0"
+                aria-label="Main gain" />
               <div class="fader-readout" id="main-gain-val">0.0 dB</div>
             </div>
 
             <div class="adsrKnobs" aria-label="ADSR controls">
               <div class="adsrKnob">
-                <div class="small-label">Attack<br>(ms)</div>
-                <div class="knob" id="adsr-attack-knob"
+                <div class="small-label">Attack (ms)</div>
+                <div class="knob" id="adsr-attack-knob" title="Double-click to reset"
                   data-min="0" data-max="5000" data-step="1" data-scale="linear" data-value="40">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value" id="adsr-attack-val">40ms</div>
@@ -83,8 +92,8 @@
               </div>
 
               <div class="adsrKnob">
-                <div class="small-label">Decay<br>(ms)</div>
-                <div class="knob" id="adsr-decay-knob"
+                <div class="small-label">Decay (ms)</div>
+                <div class="knob" id="adsr-decay-knob" title="Double-click to reset"
                   data-min="0" data-max="8000" data-step="1" data-scale="linear" data-value="180">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value" id="adsr-decay-val">180ms</div>
@@ -92,8 +101,8 @@
               </div>
 
               <div class="adsrKnob">
-                <div class="small-label">Sustain<br>(%)</div>
-                <div class="knob" id="adsr-sustain-knob"
+                <div class="small-label">Sustain (%)</div>
+                <div class="knob" id="adsr-sustain-knob" title="Double-click to reset"
                   data-min="0" data-max="100" data-step="1" data-scale="linear" data-value="62">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value" id="adsr-sustain-val">62%</div>
@@ -101,40 +110,42 @@
               </div>
 
               <div class="adsrKnob">
-                <div class="small-label">Release<br>(ms)</div>
-                <div class="knob" id="adsr-release-knob"
+                <div class="small-label">Release (ms)</div>
+                <div class="knob" id="adsr-release-knob" title="Double-click to reset"
                   data-min="5" data-max="6000" data-step="1" data-scale="linear" data-value="420">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value" id="adsr-release-val">420ms</div>
                 </div>
               </div>
             </div>
+
+            <!-- Keyboard lives inside the ADSR panel -->
+            <div class="adsr-keys">
+              <div class="keys-header">
+                <span class="small-label">OCT: <strong id="octave-display">4</strong></span>
+                <span class="small-dim">Z/X shift · ASDFG… play</span>
+              </div>
+              <div id="keyboard" class="keyboard" aria-label="Keyboard"></div>
+            </div>
+
           </section>
         </div>
-
-        <!-- Test note keyboard (global) -->
-        <section class="panel panel-testnote" aria-label="Test note keyboard">
-          <div class="panel-title center">TEST NOTE</div>
-          <div class="keyboard-wrap">
-            <div id="keyboard" class="keyboard" aria-label="Keyboard"></div>
-          </div>
-        </section>
 
         <!-- Oscillators -->
         <section class="panel panel-oscs" aria-label="Oscillators">
           <div class="panel-title center">OSCILATORS</div>
           <div class="osc-topbar">
-            <button id="osc-reset-gain" class="tiny-btn" type="button">Reset gain</button>
-            <div class="spacer"></div>
             <div class="set-all">
-              <button id="osc-set-all" class="tiny-btn" type="button">set all</button>
               <select id="osc-set-all-wave">
                 <option value="sine">Sine</option>
                 <option value="sawtooth">Sawtooth</option>
                 <option value="triangle">Triangle</option>
                 <option value="square">Square</option>
               </select>
+              <button id="osc-set-all" class="tiny-btn" type="button">Set all</button>
             </div>
+            <div class="spacer"></div>
+            <button id="osc-reset-gain" class="tiny-btn" type="button">Reset gain</button>
           </div>
           <div id="osc-grid" class="osc-grid"></div>
           <div class="brand">EDWARD JARVIS<br>SYNTHESIZER</div>
@@ -148,27 +159,30 @@
               <button id="mod-toggle" class="big-toggle" type="button" aria-pressed="false">✕</button>
             </div>
             <div class="mod-block">
-              <div class="small-label">Modulation Wave</div>
+              <div class="small-label">Modulation wave</div>
               <select id="mod-wave">
                 <option value="sine">Sine</option>
                 <option value="sawtooth">Sawtooth</option>
                 <option value="triangle">Triangle</option>
                 <option value="square">Square</option>
               </select>
+              <div class="small-label" style="margin-top:6px">Mod frequency</div>
+              <div class="knob" id="mod-freq-knob" title="Double-click to reset"
+                data-min="0.1" data-max="5000" data-step="0.01" data-scale="log" data-value="0.1">
+                <div class="knob-face"><div class="knob-indicator"></div></div>
+                <div class="knob-value" id="mod-freq-val">0.10 Hz</div>
+              </div>
             </div>
             <div class="mod-block">
               <div class="small-label">Pitch shift compensation</div>
               <div class="mod-knobs">
-                <div class="knob" id="pitch-comp-knob"
-                  data-min="-2400" data-max="0" data-step="1" data-scale="linear" data-value="0">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="pitch-comp-val">0 cent</div>
-                  <div class="knob-caption">Transp</div>
-                </div>
-                <div class="knob" id="mod-freq-knob"
-                  data-min="0.1" data-max="5000" data-step="0.01" data-scale="log" data-value="0.1">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="mod-freq-val">0.10 Hz</div>
+                <div>
+                  <div class="knob" id="pitch-comp-knob" title="Double-click to reset"
+                    data-min="-2400" data-max="0" data-step="1" data-scale="linear" data-value="0">
+                    <div class="knob-face"><div class="knob-indicator"></div></div>
+                    <div class="knob-caption">Transp</div>
+                    <div class="knob-value" id="pitch-comp-val">0 cent</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -176,25 +190,26 @@
         </section>
       </div>
 
-      <!-- Filters column -->
+      <!-- ===== Filters column ===== -->
       <div class="panel panel-filters" aria-label="Filters">
+
         <div class="filter-block">
           <div class="filter-title">NOTCH</div>
-          <canvas id="notch-canvas" width="260" height="130" aria-label="Notch response"></canvas>
+          <canvas id="notch-canvas" width="260" height="120" aria-label="Notch response"></canvas>
           <div class="filter-knobs">
-            <div class="knob" id="notch-freq-knob"
+            <div class="knob" id="notch-freq-knob" title="Double-click to reset"
               data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="1000">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Frequency</div>
               <div class="knob-value" id="notch-freq-val">1.0 kHz</div>
             </div>
-            <div class="knob" id="notch-q-knob"
+            <div class="knob" id="notch-q-knob" title="Double-click to reset"
               data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="1">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Q</div>
               <div class="knob-value" id="notch-q-val">1.00</div>
             </div>
-            <div class="knob" id="notch-gain-knob"
+            <div class="knob" id="notch-gain-knob" title="Double-click to reset"
               data-min="-24" data-max="24" data-step="0.1" data-scale="linear" data-value="0">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Gain</div>
@@ -205,15 +220,15 @@
 
         <div class="filter-block">
           <div class="filter-title">LOWPASS</div>
-          <canvas id="lp-canvas" width="260" height="130" aria-label="Lowpass response"></canvas>
+          <canvas id="lp-canvas" width="260" height="120" aria-label="Lowpass response"></canvas>
           <div class="filter-knobs">
-            <div class="knob" id="lp-freq-knob"
+            <div class="knob" id="lp-freq-knob" title="Double-click to reset"
               data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="20000">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Frequency</div>
               <div class="knob-value" id="lp-freq-val">20.0 kHz</div>
             </div>
-            <div class="knob" id="lp-q-knob"
+            <div class="knob" id="lp-q-knob" title="Double-click to reset"
               data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="0.5">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Q</div>
@@ -224,15 +239,15 @@
 
         <div class="filter-block">
           <div class="filter-title">HIGHPASS</div>
-          <canvas id="hp-canvas" width="260" height="130" aria-label="Highpass response"></canvas>
+          <canvas id="hp-canvas" width="260" height="120" aria-label="Highpass response"></canvas>
           <div class="filter-knobs">
-            <div class="knob" id="hp-freq-knob"
+            <div class="knob" id="hp-freq-knob" title="Double-click to reset"
               data-min="20" data-max="20000" data-step="1" data-scale="log" data-value="20">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Frequency</div>
               <div class="knob-value" id="hp-freq-val">20 Hz</div>
             </div>
-            <div class="knob" id="hp-q-knob"
+            <div class="knob" id="hp-q-knob" title="Double-click to reset"
               data-min="0.1" data-max="20" data-step="0.1" data-scale="linear" data-value="1">
               <div class="knob-face"><div class="knob-indicator"></div></div>
               <div class="knob-caption">Q</div>
@@ -255,7 +270,7 @@
                 <option value="hard">Hard</option>
               </select>
               <div class="small-label">Drive</div>
-              <div class="knob" id="dist-drive-knob"
+              <div class="knob" id="dist-drive-knob" title="Double-click to reset"
                 data-min="0" data-max="1" data-step="0.01" data-scale="linear" data-value="0.5">
                 <div class="knob-face"><div class="knob-indicator"></div></div>
                 <div class="knob-value" id="dist-drive-val">50%</div>
@@ -263,7 +278,7 @@
             </div>
             <div class="dist-col">
               <div class="small-label">Mix</div>
-              <div class="knob" id="dist-mix-knob"
+              <div class="knob" id="dist-mix-knob" title="Double-click to reset"
                 data-min="0" data-max="1" data-step="0.01" data-scale="linear" data-value="0.5">
                 <div class="knob-face"><div class="knob-indicator"></div></div>
                 <div class="knob-value" id="dist-mix-val">50%</div>
@@ -271,21 +286,23 @@
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- Filter LFOs column -->
+      <!-- ===== Filter LFOs column ===== -->
       <div class="panel panel-lfos" aria-label="Filter frequency LFOs">
         <div class="panel-title center">FILTER FREQUENCY LFOS</div>
         <div class="lfo-list">
+
           <div class="lfo-unit" data-lfo="0">
-            <canvas class="lfo-scope" width="260" height="110" aria-label="Notch LFO"></canvas>
+            <canvas class="lfo-scope" width="260" height="90" aria-label="Notch LFO"></canvas>
             <div class="lfo-controls">
               <div class="lfo-col">
                 <div class="small-label">Toggle LFO</div>
                 <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
               </div>
               <div class="lfo-col">
-                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <div class="small-label">Tempo aligned<br>freq (notes)</div>
                 <select class="lfo-rate">
                   <option value="4/1">4/1</option>
                   <option value="2/1">2/1</option>
@@ -305,7 +322,7 @@
               </div>
               <div class="lfo-col">
                 <div class="small-label">Strength</div>
-                <div class="knob lfo-strength"
+                <div class="knob lfo-strength" title="Double-click to reset"
                   data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value">0</div>
@@ -315,14 +332,14 @@
           </div>
 
           <div class="lfo-unit" data-lfo="1">
-            <canvas class="lfo-scope" width="260" height="110" aria-label="Lowpass LFO"></canvas>
+            <canvas class="lfo-scope" width="260" height="90" aria-label="Lowpass LFO"></canvas>
             <div class="lfo-controls">
               <div class="lfo-col">
                 <div class="small-label">Toggle LFO</div>
                 <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
               </div>
               <div class="lfo-col">
-                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <div class="small-label">Tempo aligned<br>freq (notes)</div>
                 <select class="lfo-rate">
                   <option value="4/1">4/1</option>
                   <option value="2/1">2/1</option>
@@ -342,7 +359,7 @@
               </div>
               <div class="lfo-col">
                 <div class="small-label">Strength</div>
-                <div class="knob lfo-strength"
+                <div class="knob lfo-strength" title="Double-click to reset"
                   data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value">0</div>
@@ -352,14 +369,14 @@
           </div>
 
           <div class="lfo-unit" data-lfo="2">
-            <canvas class="lfo-scope" width="260" height="110" aria-label="Highpass LFO"></canvas>
+            <canvas class="lfo-scope" width="260" height="90" aria-label="Highpass LFO"></canvas>
             <div class="lfo-controls">
               <div class="lfo-col">
                 <div class="small-label">Toggle LFO</div>
                 <button class="big-toggle lfo-toggle" type="button" aria-pressed="false">✕</button>
               </div>
               <div class="lfo-col">
-                <div class="small-label">Tempo alligned<br>frequency (notes)</div>
+                <div class="small-label">Tempo aligned<br>freq (notes)</div>
                 <select class="lfo-rate">
                   <option value="4/1">4/1</option>
                   <option value="2/1">2/1</option>
@@ -379,7 +396,7 @@
               </div>
               <div class="lfo-col">
                 <div class="small-label">Strength</div>
-                <div class="knob lfo-strength"
+                <div class="knob lfo-strength" title="Double-click to reset"
                   data-min="0" data-max="3000" data-step="1" data-scale="linear" data-value="0">
                   <div class="knob-face"><div class="knob-indicator"></div></div>
                   <div class="knob-value">0</div>
@@ -387,8 +404,10 @@
               </div>
             </div>
           </div>
+
         </div>
       </div>
+
     </div>
   </div>
 

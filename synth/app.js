@@ -88,6 +88,8 @@ function initKnob(knobEl, { format, onChange }) {
   const scale = (knobEl.dataset.scale || 'linear').toLowerCase();
   const indicator = knobEl.querySelector('.knob-indicator');
   const valueEl = knobEl.querySelector('.knob-value');
+  // Capture default value BEFORE setValue() overwrites dataset.value
+  const defaultValue = Number(knobEl.dataset.value ?? min);
 
   const toNorm = (value) => {
     const v = clamp(Number(value), min, max);
@@ -155,6 +157,12 @@ function initKnob(knobEl, { format, onChange }) {
   knobEl.addEventListener('pointerup', endDrag);
   knobEl.addEventListener('pointercancel', endDrag);
   knobEl.addEventListener('pointerleave', (e) => { if (dragging) endDrag(e); });
+
+  // Double-click resets to the original default value
+  knobEl.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    setValue(defaultValue);
+  });
 
   return { setValue, getValue: () => Number(knobEl.dataset.value ?? min) };
 }
@@ -547,6 +555,12 @@ function setADSR(next, { updateUI = true, updateGraph = true, updateEngine = tru
   // Clamp via editor logic for consistency
   if (updateGraph && envEditor) envEditor.setADSR(adsrState, { emit: false });
   if (updateEngine) applyADSRToEngine(adsrState);
+
+  // Update note duration readout
+  const totalMs = (Number(adsrState.attackMs) || 0) + (Number(adsrState.decayMs) || 0)
+    + (Number(adsrState.holdMs) || 0) + (Number(adsrState.releaseMs) || 0);
+  const noteDurEl = document.getElementById('note-duration-val');
+  if (noteDurEl) noteDurEl.textContent = `${Math.round(clamp(totalMs, 100, 20000))} ms`;
 
   if (updateUI) {
     attackKnob.setValue(clamp(Number(adsrState.attackMs) || 0, 0, 5000), { emit: false });
@@ -1019,6 +1033,8 @@ const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
 let baseOctave = 4; // C4
 
 function buildKeyboard() {
+  const octaveEl = document.getElementById('octave-display');
+  if (octaveEl) octaveEl.textContent = String(baseOctave);
   keyboardEl.innerHTML = '';
   for (let oct = 0; oct < 2; oct++) {
     for (let i = 0; i < 12; i++) {
