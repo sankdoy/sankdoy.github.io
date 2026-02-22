@@ -23,174 +23,148 @@
       </div>
     </div>
 
-    <!-- Main layout -->
-    <div class="main-row">
+    <!-- Global row: project+midi | adsr+keyboard -->
+    <div class="global-row">
 
-      <!-- ===== Left column ===== -->
-      <div class="left-col">
-        <div class="left-top">
-
-          <!-- Project / global controls -->
-          <section class="panel panel-project" aria-label="Project controls">
-            <div class="panel-title">PROJECT BPM</div>
-            <div class="project-bpm-row">
-              <input id="bpm" type="number" min="20" max="300" value="120" />
-            </div>
-
-            <button id="audio-btn" class="audio-btn" type="button" aria-pressed="false">AUDIO ON</button>
-
-            <div class="project-actions">
-              <button id="randomise-btn" class="tiny-btn" type="button">Randomise</button>
-              <button id="reset-btn"     class="tiny-btn" type="button">Reset</button>
-            </div>
-
-            <div class="project-row">
-              <div class="small-label">overtone coefficient<br><span class="small-dim">(standard is 1)</span></div>
-              <div class="mini-row">
-                <div class="knob" id="overtone-knob" title="Double-click to reset"
-                  data-min="0" data-max="2" data-step="0.01" data-scale="linear" data-value="1">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="overtone-val">1.00</div>
-                </div>
-                <div class="reset-col">
-                  <button id="overtone-reset" class="tiny-btn" type="button">Reset to 1</button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- ADSR + Main Gain + Keyboard -->
-          <section class="panel panel-adsr adsrCard" aria-label="Envelope and gain">
-
-            <div class="adsrHeader">
-              <div class="adsrTitle">ADSR</div>
-              <div class="note-dur-row">
-                <span class="note-dur-label">Note duration (ms)</span>
-                <span class="note-dur-val" id="note-duration-val">—</span>
-              </div>
-            </div>
-
-            <div class="adsrGraph">
-              <canvas id="env-canvas" width="640" height="260" aria-label="Envelope editor"></canvas>
-            </div>
-
-            <div class="adsrGain" aria-label="Main gain">
-              <div class="small-label">MAIN<br>GAIN</div>
-              <input id="main-gain" class="v-fader" type="range" min="-70" max="6" step="0.1" value="0"
-                aria-label="Main gain" />
-              <div class="fader-readout" id="main-gain-val">0.0 dB</div>
-            </div>
-
-            <div class="adsrKnobs" aria-label="ADSR controls">
-              <div class="adsrKnob">
-                <div class="small-label">Attack (ms)</div>
-                <div class="knob" id="adsr-attack-knob" title="Double-click to reset"
-                  data-min="0" data-max="5000" data-step="1" data-scale="linear" data-value="40">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="adsr-attack-val">40ms</div>
-                </div>
-              </div>
-
-              <div class="adsrKnob">
-                <div class="small-label">Decay (ms)</div>
-                <div class="knob" id="adsr-decay-knob" title="Double-click to reset"
-                  data-min="0" data-max="8000" data-step="1" data-scale="linear" data-value="180">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="adsr-decay-val">180ms</div>
-                </div>
-              </div>
-
-              <div class="adsrKnob">
-                <div class="small-label">Sustain (%)</div>
-                <div class="knob" id="adsr-sustain-knob" title="Double-click to reset"
-                  data-min="0" data-max="100" data-step="1" data-scale="linear" data-value="62">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="adsr-sustain-val">62%</div>
-                </div>
-              </div>
-
-              <div class="adsrKnob">
-                <div class="small-label">Release (ms)</div>
-                <div class="knob" id="adsr-release-knob" title="Double-click to reset"
-                  data-min="5" data-max="6000" data-step="1" data-scale="linear" data-value="420">
-                  <div class="knob-face"><div class="knob-indicator"></div></div>
-                  <div class="knob-value" id="adsr-release-val">420ms</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Keyboard lives inside the ADSR panel -->
-            <div class="adsr-keys">
-              <div class="keys-header">
-                <span class="small-label">OCT: <strong id="octave-display">4</strong></span>
-                <span class="small-dim">Z/X shift · ASDFG… play</span>
-              </div>
-              <div id="keyboard" class="keyboard" aria-label="Keyboard"></div>
-            </div>
-
-          </section>
+      <!-- Project / global controls -->
+      <section class="panel panel-project" aria-label="Project controls">
+        <div class="panel-title">PROJECT BPM</div>
+        <div class="project-bpm-row">
+          <input id="bpm" type="number" min="20" max="300" value="120" />
         </div>
 
-        <!-- Oscillators -->
-        <section class="panel panel-oscs" aria-label="Oscillators">
-          <div class="panel-title center">OSCILATORS</div>
-          <div class="osc-topbar">
-            <div class="set-all">
-              <select id="osc-set-all-wave">
-                <option value="sine">Sine</option>
-                <option value="sawtooth">Sawtooth</option>
-                <option value="triangle">Triangle</option>
-                <option value="square">Square</option>
-              </select>
-              <button id="osc-set-all" class="tiny-btn" type="button">Set all</button>
-            </div>
-            <div class="spacer"></div>
-            <button id="osc-reset-gain" class="tiny-btn" type="button">Reset gain</button>
-          </div>
-          <div id="osc-grid" class="osc-grid"></div>
-          <div class="brand">EDWARD JARVIS<br>SYNTHESIZER</div>
-        </section>
+        <button id="audio-btn" class="audio-btn" type="button" aria-pressed="false">AUDIO ON</button>
 
-        <!-- Modulation -->
-        <section class="panel panel-mod" aria-label="Modulation">
-          <div class="mod-grid">
-            <div class="mod-block">
-              <div class="small-label">Modulation toggle</div>
-              <button id="mod-toggle" class="big-toggle" type="button" aria-pressed="false">✕</button>
+        <div class="project-actions">
+          <button id="randomise-btn" class="tiny-btn" type="button">Randomise</button>
+          <button id="reset-btn"     class="tiny-btn" type="button">Reset</button>
+        </div>
+
+        <div class="project-row">
+          <div class="small-label">overtone coefficient<br><span class="small-dim">(standard is 1)</span></div>
+          <div class="mini-row">
+            <div class="knob" id="overtone-knob" title="Double-click to reset"
+              data-min="0" data-max="2" data-step="0.01" data-scale="linear" data-value="1">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="overtone-val">1.00</div>
             </div>
-            <div class="mod-block">
-              <div class="small-label">Modulation wave</div>
-              <select id="mod-wave">
-                <option value="sine">Sine</option>
-                <option value="sawtooth">Sawtooth</option>
-                <option value="triangle">Triangle</option>
-                <option value="square">Square</option>
-              </select>
-              <div class="small-label" style="margin-top:6px">Mod frequency</div>
-              <div class="knob" id="mod-freq-knob" title="Double-click to reset"
-                data-min="0.1" data-max="5000" data-step="0.01" data-scale="log" data-value="0.1">
-                <div class="knob-face"><div class="knob-indicator"></div></div>
-                <div class="knob-value" id="mod-freq-val">0.10 Hz</div>
-              </div>
-            </div>
-            <div class="mod-block">
-              <div class="small-label">Pitch shift compensation</div>
-              <div class="mod-knobs">
-                <div>
-                  <div class="knob" id="pitch-comp-knob" title="Double-click to reset"
-                    data-min="-2400" data-max="0" data-step="1" data-scale="linear" data-value="0">
-                    <div class="knob-face"><div class="knob-indicator"></div></div>
-                    <div class="knob-caption">Transp</div>
-                    <div class="knob-value" id="pitch-comp-val">0 cent</div>
-                  </div>
-                </div>
-              </div>
+            <div class="reset-col">
+              <button id="overtone-reset" class="tiny-btn" type="button">Reset to 1</button>
             </div>
           </div>
-        </section>
+        </div>
+
+        <!-- MIDI Section -->
+        <div class="midi-section">
+          <div class="midi-title">MIDI FILE</div>
+          <div class="midi-controls">
+            <label class="tiny-btn midi-load-btn" tabindex="0" role="button">
+              Load File
+              <input id="midi-file" type="file" accept=".mid,.midi">
+            </label>
+            <button id="midi-play" class="tiny-btn" type="button" disabled>Play</button>
+            <button id="midi-stop" class="tiny-btn" type="button" disabled>Stop</button>
+          </div>
+          <div class="midi-status" id="midi-status">No file loaded</div>
+        </div>
+      </section>
+
+      <!-- ADSR + Main Gain + Keyboard -->
+      <section class="panel panel-adsr adsrCard" aria-label="Envelope and gain">
+
+        <div class="adsrHeader">
+          <div class="adsrTitle">ADSR</div>
+          <div class="note-dur-row">
+            <span class="note-dur-label">Note duration (ms)</span>
+            <span class="note-dur-val" id="note-duration-val">—</span>
+          </div>
+        </div>
+
+        <div class="adsrGraph">
+          <canvas id="env-canvas" width="640" height="260" aria-label="Envelope editor"></canvas>
+        </div>
+
+        <div class="adsrGain" aria-label="Main gain">
+          <div class="small-label">MAIN<br>GAIN</div>
+          <input id="main-gain" class="v-fader" type="range" min="-70" max="6" step="0.1" value="0"
+            aria-label="Main gain" />
+          <div class="fader-readout" id="main-gain-val">0.0 dB</div>
+        </div>
+
+        <div class="adsrKnobs" aria-label="ADSR controls">
+          <div class="adsrKnob">
+            <div class="small-label">Attack (ms)</div>
+            <div class="knob" id="adsr-attack-knob" title="Double-click to reset"
+              data-min="0" data-max="5000" data-step="1" data-scale="linear" data-value="40">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="adsr-attack-val">40ms</div>
+            </div>
+          </div>
+
+          <div class="adsrKnob">
+            <div class="small-label">Decay (ms)</div>
+            <div class="knob" id="adsr-decay-knob" title="Double-click to reset"
+              data-min="0" data-max="8000" data-step="1" data-scale="linear" data-value="180">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="adsr-decay-val">180ms</div>
+            </div>
+          </div>
+
+          <div class="adsrKnob">
+            <div class="small-label">Sustain (%)</div>
+            <div class="knob" id="adsr-sustain-knob" title="Double-click to reset"
+              data-min="0" data-max="100" data-step="1" data-scale="linear" data-value="62">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="adsr-sustain-val">62%</div>
+            </div>
+          </div>
+
+          <div class="adsrKnob">
+            <div class="small-label">Release (ms)</div>
+            <div class="knob" id="adsr-release-knob" title="Double-click to reset"
+              data-min="5" data-max="6000" data-step="1" data-scale="linear" data-value="420">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="adsr-release-val">420ms</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Keyboard lives inside the ADSR panel -->
+        <div class="adsr-keys">
+          <div class="keys-header">
+            <span class="small-label">OCT: <strong id="octave-display">4</strong></span>
+            <span class="small-dim">Z/X shift · ASDFG… play</span>
+          </div>
+          <div id="keyboard" class="keyboard" aria-label="Keyboard"></div>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Oscillators: full width -->
+    <section class="panel panel-oscs" aria-label="Oscillators">
+      <div class="panel-title center">OSCILATORS</div>
+      <div class="osc-topbar">
+        <div class="set-all">
+          <select id="osc-set-all-wave">
+            <option value="sine">Sine</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="triangle">Triangle</option>
+            <option value="square">Square</option>
+          </select>
+          <button id="osc-set-all" class="tiny-btn" type="button">Set all</button>
+        </div>
+        <div class="spacer"></div>
+        <button id="osc-reset-gain" class="tiny-btn" type="button">Reset gain</button>
       </div>
+      <div id="osc-grid" class="osc-grid"></div>
+      <div class="brand">EDWARD JARVIS<br>SYNTHESIZER</div>
+    </section>
 
-      <!-- ===== Filters column ===== -->
+    <!-- FX row: Filters | Filter LFOs | Modulation -->
+    <div class="fx-row">
+
+      <!-- Filters column -->
       <div class="panel panel-filters" aria-label="Filters">
 
         <div class="filter-block">
@@ -289,7 +263,7 @@
 
       </div>
 
-      <!-- ===== Filter LFOs column ===== -->
+      <!-- Filter LFOs column -->
       <div class="panel panel-lfos" aria-label="Filter frequency LFOs">
         <div class="panel-title center">FILTER FREQUENCY LFOS</div>
         <div class="lfo-list">
@@ -408,7 +382,47 @@
         </div>
       </div>
 
+      <!-- Modulation column -->
+      <section class="panel panel-mod" aria-label="Modulation">
+        <div class="panel-title center">MODULATION</div>
+        <div class="mod-grid">
+          <div class="mod-block">
+            <div class="small-label">Modulation toggle</div>
+            <button id="mod-toggle" class="big-toggle" type="button" aria-pressed="false">✕</button>
+          </div>
+          <div class="mod-block">
+            <div class="small-label">Modulation wave</div>
+            <select id="mod-wave">
+              <option value="sine">Sine</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="triangle">Triangle</option>
+              <option value="square">Square</option>
+            </select>
+            <div class="small-label" style="margin-top:6px">Mod frequency</div>
+            <div class="knob" id="mod-freq-knob" title="Double-click to reset"
+              data-min="0.1" data-max="5000" data-step="0.01" data-scale="log" data-value="0.1">
+              <div class="knob-face"><div class="knob-indicator"></div></div>
+              <div class="knob-value" id="mod-freq-val">0.10 Hz</div>
+            </div>
+          </div>
+          <div class="mod-block">
+            <div class="small-label">Pitch shift compensation</div>
+            <div class="mod-knobs">
+              <div>
+                <div class="knob" id="pitch-comp-knob" title="Double-click to reset"
+                  data-min="-2400" data-max="0" data-step="1" data-scale="linear" data-value="0">
+                  <div class="knob-face"><div class="knob-indicator"></div></div>
+                  <div class="knob-caption">Transp</div>
+                  <div class="knob-value" id="pitch-comp-val">0 cent</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
+
   </div>
 
   <script src="engine.js"></script>

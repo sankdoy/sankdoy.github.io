@@ -1254,3 +1254,198 @@ window.addEventListener('load', () => setTimeout(postHeight, 0));
 window.addEventListener('resize', () => postHeight());
 setTimeout(postHeight, 250);
 setTimeout(postHeight, 800);
+
+// ============ MIDI File Player ============
+
+function parseMidiFile(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let pos = 0;
+
+  function read32() {
+    const v = ((bytes[pos] << 24) | (bytes[pos+1] << 16) | (bytes[pos+2] << 8) | bytes[pos+3]) >>> 0;
+    pos += 4; return v;
+  }
+  function read16() { const v = (bytes[pos] << 8) | bytes[pos+1]; pos += 2; return v; }
+  function read8()  { return bytes[pos++]; }
+  function readVar() {
+    let v = 0, b;
+    do { b = read8(); v = (v << 7) | (b & 0x7F); } while (b & 0x80);
+    return v;
+  }
+
+  if (read32() !== 0x4D546864) throw new Error('Not a MIDI file');
+  read32(); // header length = 6
+  read16(); // format (0=single, 1=multi-track, 2=multi-song)
+  const numTracks  = read16();
+  const division   = read16();
+  if (division & 0x8000) throw new Error('SMPTE timecode not supported');
+  const ticksPerBeat = division;
+
+  const tracks = [];
+  for (let t = 0; t < numTracks; t++) {
+    if (pos + 8 > bytes.length) break;
+    if (read32() !== 0x4D54726B) break; // 'MTrk'
+    const trackLen = read32();
+    const trackEnd = pos + trackLen;
+    const events   = [];
+    let tick = 0, running = 0;
+
+    while (pos < trackEnd) {
+      const delta = readVar();
+      tick += delta;
+
+      let status = bytes[pos];
+      if (status & 0x80) { running = status; pos++; }
+      else status = running; // running status
+
+      const type = status & 0xF0;
+
+      if (type === 0x90) {
+        const note = read8(), vel = read8();
+        events.push({ tick, type: vel > 0 ? 'noteOn' : 'noteOff', note });
+      } else if (type === 0x80) {
+        const note = read8(); read8();
+        events.push({ tick, type: 'noteOff', note });
+      } else if (type === 0xA0 || type === 0xB0 || type === 0xE0) {
+        pos += 2;
+      } else if (type === 0xC0 || type === 0xD0) {
+        pos += 1;
+      } else if (status === 0xF0 || status === 0xF7) {
+        pos += readVar();
+      } else if (status === 0xFF) {
+        const meta = read8();
+        const len  = readVar();
+        if (meta === 0x51 && len === 3) {
+          const b1 = read8(), b2 = read8(), b3 = read8();
+          events.push({ tick, type: 'tempo', uspb: (b1 << 16) | (b2 << 8) | b3 });
+        } else {
+          pos += len;
+        }
+      } else {
+        pos = trackEnd; break; // unknown, bail on track
+      }
+    }
+
+    pos = trackEnd;
+    tracks.push(events);
+  }
+
+  // Merge all tracks and sort by tick (tempo events first within same tick)
+  const all = [].concat(...tracks).sort((a, b) =>
+    a.tick !== b.tick ? a.tick - b.tick : (a.type === 'tempo' ? -1 : 1)
+  );
+
+  // Convert ticks to milliseconds, tracking tempo changes
+  let uspb = 500000; // default: 120 BPM
+  let lastTick = 0, lastMs = 0;
+  const timeline = [];
+
+  for (const ev of all) {
+    const ms = lastMs + ((ev.tick - lastTick) / ticksPerBeat) * (uspb / 1000);
+    if (ev.type === 'tempo') {
+      lastMs = ms; lastTick = ev.tick; uspb = ev.uspb;
+    } else if (ev.type === 'noteOn' || ev.type === 'noteOff') {
+      timeline.push({ ms, type: ev.type, note: ev.note });
+    }
+  }
+
+  return timeline;
+}
+
+// Player state
+let midiTimeline   = null;
+let midiTimers     = [];
+let midiPlaying    = false;
+let midiActiveNotes = new Set();
+let midiFileName   = null;
+
+const midiFileInput = document.getElementById('midi-file');
+const midiPlayBtn   = document.getElementById('midi-play');
+const midiStopBtn   = document.getElementById('midi-stop');
+const midiStatusEl  = document.getElementById('midi-status');
+
+function updateMidiUI() {
+  if (!midiStatusEl) return;
+  if (!midiTimeline) {
+    midiStatusEl.textContent = 'No file loaded';
+    midiStatusEl.className = 'midi-status';
+  } else if (midiPlaying) {
+    midiStatusEl.textContent = '\u25B6 ' + midiFileName;
+    midiStatusEl.className = 'midi-status playing';
+  } else {
+    midiStatusEl.textContent = midiFileName;
+    midiStatusEl.className = 'midi-status';
+  }
+  if (midiPlayBtn) midiPlayBtn.disabled = !midiTimeline || midiPlaying;
+  if (midiStopBtn) midiStopBtn.disabled = !midiPlaying;
+}
+
+function stopMidi() {
+  midiPlaying = false;
+  for (const t of midiTimers) clearTimeout(t);
+  midiTimers = [];
+  for (const note of midiActiveNotes) synth.noteOff(note);
+  midiActiveNotes.clear();
+  updateMidiUI();
+}
+
+function playMidi() {
+  if (!midiTimeline || midiPlaying) return;
+  if (!synth.running) {
+    if (midiStatusEl) {
+      midiStatusEl.textContent = 'Enable audio first!';
+      midiStatusEl.className = 'midi-status error';
+    }
+    return;
+  }
+  midiPlaying = true;
+  updateMidiUI();
+
+  for (const ev of midiTimeline) {
+    const t = setTimeout(() => {
+      if (!midiPlaying) return;
+      if (ev.type === 'noteOn') {
+        synth.noteOn(ev.note);
+        midiActiveNotes.add(ev.note);
+      } else {
+        synth.noteOff(ev.note);
+        midiActiveNotes.delete(ev.note);
+      }
+    }, ev.ms);
+    midiTimers.push(t);
+  }
+
+  // Auto-stop after last event + release tail
+  const lastMs = midiTimeline.length ? midiTimeline[midiTimeline.length - 1].ms : 0;
+  const releaseMs = clamp(Number(adsrState.releaseMs) || 500, 5, 6000);
+  const endT = setTimeout(() => stopMidi(), lastMs + releaseMs + 500);
+  midiTimers.push(endT);
+}
+
+if (midiFileInput) {
+  midiFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    stopMidi();
+    midiFileName = file.name.replace(/\.(mid|midi)$/i, '');
+    if (midiStatusEl) { midiStatusEl.textContent = 'Parsing\u2026'; midiStatusEl.className = 'midi-status'; }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        midiTimeline = parseMidiFile(evt.target.result);
+        updateMidiUI();
+      } catch (err) {
+        midiTimeline = null;
+        if (midiStatusEl) { midiStatusEl.textContent = 'Error: ' + err.message; midiStatusEl.className = 'midi-status error'; }
+        if (midiPlayBtn) midiPlayBtn.disabled = true;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ''; // allow re-loading same file
+  });
+}
+
+if (midiPlayBtn) midiPlayBtn.addEventListener('click', playMidi);
+if (midiStopBtn) midiStopBtn.addEventListener('click', stopMidi);
+
+updateMidiUI();
