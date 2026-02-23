@@ -1215,6 +1215,8 @@ function drawLFOScope(canvas, cfg, tNowSec) {
 
   const rateHz = (Number(bpmInput.value) || 120) / 60 / Math.max(0.001, cfg.rateBeats);
   const phase = (tNowSec * rateHz) % 1;
+
+  // Draw waveform
   ctx.strokeStyle = '#e0c850';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -1226,6 +1228,26 @@ function drawLFOScope(canvas, cfg, tNowSec) {
     else ctx.lineTo(x, y);
   }
   ctx.stroke();
+
+  // Current-value indicator: the left edge (phase=0, t=0) is "now"
+  const cv  = evalWave(cfg.waveform, phase);
+  const cy  = (0.5 - cv * 0.42) * h;
+
+  // Horizontal line showing current output level
+  ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, cy);
+  ctx.lineTo(w, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Bright playhead dot at left edge
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(5, cy, 4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function raf() {
@@ -1238,6 +1260,18 @@ function raf() {
 
   const tNow = performance.now() / 1000;
   for (const u of lfoUnits) drawLFOScope(u.scope, u, tNow);
+
+  // Redraw filter response canvases in real-time when their LFO is active
+  if (synth.running) {
+    const filterMap = [
+      [0, 'notch',    notchCanvas],
+      [1, 'lowpass',  lpCanvas],
+      [2, 'highpass', hpCanvas],
+    ];
+    for (const [i, which, canvas] of filterMap) {
+      if (lfoUnits[i]?.enabled) drawFilter(which, canvas);
+    }
+  }
 
   requestAnimationFrame(raf);
 }
