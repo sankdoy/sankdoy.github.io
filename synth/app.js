@@ -1443,6 +1443,7 @@ if (midiFileInput) {
         bpmInput.value = String(midiBpm);
         synth.setBPM(midiBpm);
         updateMidiUI();
+        playMidi();
       } catch (err) {
         midiTimeline = null;
         if (midiStatusEl) { midiStatusEl.textContent = 'Error: ' + err.message; midiStatusEl.className = 'midi-status error'; }
