@@ -988,7 +988,7 @@ function randomiseState() {
   });
 
   return {
-    bpm: randInt(60, 165),
+    bpm: (midiTimeline && midiBpm != null) ? midiBpm : randInt(60, 165),
     mainGainDb,
     overtoneCoefficient: clamp(1 + randRange(-0.7, 0.7), 0, 2),
     adsr,
@@ -1339,25 +1339,29 @@ function parseMidiFile(buffer) {
   let uspb = 500000; // default: 120 BPM
   let lastTick = 0, lastMs = 0;
   const timeline = [];
+  let firstUspb = null; // capture the first tempo event for BPM display
 
   for (const ev of all) {
     const ms = lastMs + ((ev.tick - lastTick) / ticksPerBeat) * (uspb / 1000);
     if (ev.type === 'tempo') {
+      if (firstUspb === null) firstUspb = ev.uspb;
       lastMs = ms; lastTick = ev.tick; uspb = ev.uspb;
     } else if (ev.type === 'noteOn' || ev.type === 'noteOff') {
       timeline.push({ ms, type: ev.type, note: ev.note });
     }
   }
 
-  return timeline;
+  const bpm = Math.round(60000000 / (firstUspb ?? uspb));
+  return { timeline, bpm };
 }
 
 // Player state
-let midiTimeline   = null;
-let midiTimers     = [];
-let midiPlaying    = false;
+let midiTimeline    = null;
+let midiBpm         = null; // BPM extracted from the loaded MIDI file
+let midiTimers      = [];
+let midiPlaying     = false;
 let midiActiveNotes = new Set();
-let midiFileName   = null;
+let midiFileName    = null;
 
 const midiFileInput = document.getElementById('midi-file');
 const midiPlayBtn   = document.getElementById('midi-play');
@@ -1432,7 +1436,12 @@ if (midiFileInput) {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        midiTimeline = parseMidiFile(evt.target.result);
+        const result = parseMidiFile(evt.target.result);
+        midiTimeline = result.timeline;
+        midiBpm = result.bpm;
+        // Apply the MIDI file's tempo to the synth
+        bpmInput.value = String(midiBpm);
+        synth.setBPM(midiBpm);
         updateMidiUI();
       } catch (err) {
         midiTimeline = null;
