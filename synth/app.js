@@ -1443,7 +1443,6 @@ if (midiFileInput) {
         bpmInput.value = String(midiBpm);
         synth.setBPM(midiBpm);
         updateMidiUI();
-        playMidi();
       } catch (err) {
         midiTimeline = null;
         if (midiStatusEl) { midiStatusEl.textContent = 'Error: ' + err.message; midiStatusEl.className = 'midi-status error'; }
@@ -1459,3 +1458,17 @@ if (midiPlayBtn) midiPlayBtn.addEventListener('click', playMidi);
 if (midiStopBtn) midiStopBtn.addEventListener('click', stopMidi);
 
 updateMidiUI();
+
+// Pre-load the bundled MIDI file
+fetch('midi/can-you-hear-the-music.mid')
+  .then(r => r.arrayBuffer())
+  .then(buf => {
+    const result = parseMidiFile(buf);
+    midiTimeline = result.timeline;
+    midiBpm      = result.bpm;
+    midiFileName = 'can-you-hear-the-music';
+    bpmInput.value = String(midiBpm);
+    synth.setBPM(midiBpm);
+    updateMidiUI();
+  })
+  .catch(() => {}); // silently skip if file not found
